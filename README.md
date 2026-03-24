@@ -21,7 +21,7 @@ Stay informed. Stay alive.
 |----------|--------------|
 | 🕒 **Day & Time** | Displays the in-game day and time |
 | 🌡️ **Temperature** | Shows `Air Temp` / `Wind Chill` / `Feels like` temperatures<br>Temperature text turns red when `Feels like` goes negative<br><br>This is absolutely critical info at Interloper/Misery difficulty to avoid:<br>* 20%/hr cold damage<br>* Hypothermia |
-| 🎒 **Inventory Weight** | Keep track of your current carry load |
+| 🎒 **Inventory Weight** | Keep track of your current carry load<br>Weight text turns red when overencumbered |
 | 🔧 **Active Item Condition** | Know your item’s remaining durability at a glance <br> Especially useful to eek out maximum utility for your Torches |
 | 🧊 **Ice-Breaking Time** | Extends the selected fishing hole clearing tool name with the estimated time required to break the ice |
 | ❄️ **Thin Ice Break Timer** | Displays the remaining time before thin ice breaks under your feet |
