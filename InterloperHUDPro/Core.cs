@@ -1,7 +1,8 @@
 ﻿using Il2CppTLD.SaveState;
 using InterloperHudPro;
+using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.1.0", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.2.0", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -96,6 +97,20 @@ namespace InterloperHudPro
         }
     }
 
+    internal readonly struct WindDirectionHudData
+    {
+        internal readonly float RelativeAngle;
+        internal readonly bool IsOutdoors;
+        internal readonly float SpeedMPH;
+
+        internal WindDirectionHudData(float relativeAngle, bool isOutdoors, float speedMph)
+        {
+            RelativeAngle = relativeAngle;
+            IsOutdoors = isOutdoors;
+            SpeedMPH = speedMph;
+        }
+    }
+
     // -------------------------------------------------------------------------
     //                              HUD LOGIC
     // -------------------------------------------------------------------------
@@ -127,7 +142,38 @@ namespace InterloperHudPro
         {
             return HasTemperatureHudContent()
                 || Settings.options.ShowWeight
-                || Settings.options.ShowDayNight;
+                || Settings.options.ShowDayNight
+                || Settings.options.ShowWindDirection;
+        }
+
+        internal static bool TryGetWindDirectionHudData(out WindDirectionHudData data)
+        {
+            data = default;
+
+            var weather = GameManager.GetWeatherComponent();
+            var wind = GameManager.GetWindComponent();
+
+            if (weather == null || wind == null)
+                return false;
+
+            bool isOutdoors = !weather.IsIndoorEnvironment() && !weather.IsIndoorScene();
+            float relativeAngle = wind.GetWindAngleRelativeToPlayer();
+            float speedMph = wind.GetSpeedMPH();
+
+            data = new WindDirectionHudData(relativeAngle, isOutdoors, speedMph);
+            return true;
+        }
+
+        internal static string FormatWindSpeedText(WindDirectionHudData data)
+        {
+            SettingsState settings = SettingsState.Instance;
+            if (settings != null && settings.m_Units == MeasurementUnits.Imperial)
+            {
+                return $"{Mathf.CeilToInt(data.SpeedMPH)} MPH";
+            }
+
+            float speedKmh = data.SpeedMPH * 1.60934f;
+            return $"{Mathf.CeilToInt(speedKmh)} KM/H";
         }
 
         internal static bool TryGetTemperatureHudData(out TemperatureHudData data)
@@ -351,6 +397,20 @@ namespace InterloperHudPro
         private const string DayNightLabelName = "InterloperHudPro_DayNightLabel";
         private const string ActiveItemLabelName = "InterloperHudPro_ActiveItemConditionLabel";
         private const string WeakIceTimerLabelName = "InterloperHudPro_WeakIceTimerLabel";
+        private const string WindRootName = "InterloperHudPro_WindRoot";
+        private const string WindArrowLabelName = "InterloperHudPro_WindArrowLabel";
+        private const string WindSpeedLabelName = "InterloperHudPro_WindSpeedLabel";
+        private const string WindDirectionGlyph = "↑";
+        private static float _indoorWindSpinAngle = 0f;
+        private static Vector3 WindRootPosition => new(Settings.options.WindDirectionX, Settings.options.WindDirectionY, 0f);
+        private static Vector3 WindArrowLocalPosition => new(0f, 0f, 0f);
+        private static Vector3 WindSpeedLocalPosition => new(0f, -Settings.options.WindSpeedYOffset, 0f);
+
+        private static Vector3 WindDirectionPosition => new(Settings.options.WindDirectionX, 0f, 0f);
+
+        private static GameObject? _windRoot;
+        private static UILabel? _windArrowLabel;
+        private static UILabel? _windSpeedLabel;
 
         private const int MainFontSize = 32;
         private const int SmallFontSize = 20;
@@ -404,12 +464,29 @@ namespace InterloperHudPro
                 _weakIceTimerLabel = null;
             }
 
+            if (_windRoot != null)
+            {
+                UnityEngine.Object.Destroy(_windRoot);
+                _windRoot = null;
+            }
+
+            _windArrowLabel = null;
+            _windSpeedLabel = null;
+            _indoorWindSpinAngle = 0f;
             _airTemperatureLabel = null;
             _windChillLabel = null;
             _feelsLikeLabel = null;
             _weightLabel = null;
 
             InterloperHudProMain.Log("HUD renderer reset.");
+        }
+
+        internal static void HideWindDirectionBlock()
+        {
+            if (_windRoot != null)
+                _windRoot.SetActive(false);
+
+            RefreshMainRootVisibility();
         }
 
         internal static void HideMainBlock()
@@ -466,6 +543,13 @@ namespace InterloperHudPro
             _windChillLabel = CreateMainChildLabel(WindChillLabelName, WindChillPosition);
             _feelsLikeLabel = CreateMainChildLabel(FeelsLikeLabelName, FeelsLikePosition);
             _weightLabel = CreateMainChildLabel(WeightLabelName, WeightPosition);
+            _windRoot = new GameObject(WindRootName);
+            _windRoot.transform.SetParent(_mainRoot.transform, false);
+            _windRoot.transform.localScale = Vector3.one;
+            _windRoot.transform.localPosition = WindRootPosition;
+
+            _windArrowLabel = CreateCenteredChildLabel(_windRoot.transform, WindArrowLabelName, WindArrowLocalPosition, Settings.options.WindArrowFontSize);
+            _windSpeedLabel = CreateCenteredChildLabel(_windRoot.transform, WindSpeedLabelName, WindSpeedLocalPosition, Settings.options.WindSpeedFontSize);
 
             RefreshMainLabelPositions();
 
@@ -511,13 +595,80 @@ namespace InterloperHudPro
                 hasWeightData ? HudLogic.FormatWeightHudText(weightData) : string.Empty,
                 weightColor);
 
-            bool anyVisible =
-                (Settings.options.ShowAirTemperature && hasTemperatureData) ||
-                (Settings.options.ShowWindChill && hasTemperatureData) ||
-                (Settings.options.ShowFeelsLikeTemperature && hasTemperatureData) ||
-                (Settings.options.ShowWeight && hasWeightData);
+            RefreshMainRootVisibility();
+        }
 
-            _mainRoot.SetActive(anyVisible);
+        internal static void RenderWindDirectionBlock(WindDirectionHudData data)
+        {
+            if (_mainRoot == null || _windRoot == null || _windArrowLabel == null || _windSpeedLabel == null)
+                return;
+
+            _windRoot.transform.localPosition = WindRootPosition;
+            _windArrowLabel.transform.localPosition = WindArrowLocalPosition;
+            _windSpeedLabel.transform.localPosition = WindSpeedLocalPosition;
+
+            _windArrowLabel.fontSize = Settings.options.WindArrowFontSize;
+            _windSpeedLabel.fontSize = Settings.options.WindSpeedFontSize;
+
+            if (!Settings.options.ShowWindDirection)
+            {
+                _windRoot.SetActive(false);
+                RefreshMainRootVisibility();
+                return;
+            }
+
+            bool showIndoors = Settings.options.ShowWindHudIndoors;
+
+            if (!data.IsOutdoors && !showIndoors)
+            {
+                _windRoot.SetActive(false);
+                RefreshMainRootVisibility();
+                return;
+            }
+
+            _windRoot.SetActive(true);
+
+            _windArrowLabel.gameObject.SetActive(true);
+            _windArrowLabel.text = WindDirectionGlyph;
+            _windArrowLabel.color = DefaultTextColor;
+
+            if (data.IsOutdoors)
+            {
+                _windArrowLabel.transform.localRotation =
+                    Quaternion.Euler(0f, 0f, -data.RelativeAngle);
+            }
+            else
+            {
+                float directionMultiplier = Settings.options.IndoorWindSpinDirection == WindSpinDirection.Clockwise ? -1f : 1f;
+
+                _indoorWindSpinAngle += Time.unscaledDeltaTime * Settings.options.IndoorWindSpinSpeed * directionMultiplier;
+
+                if (_indoorWindSpinAngle >= 360f || _indoorWindSpinAngle <= -360f) _indoorWindSpinAngle = 0f;
+
+                _windArrowLabel.transform.localRotation = Quaternion.Euler(0f, 0f, _indoorWindSpinAngle);
+            }
+
+            _windSpeedLabel.gameObject.SetActive(true);
+            _windSpeedLabel.text = HudLogic.FormatWindSpeedText(data);
+            _windSpeedLabel.color = DefaultTextColor;
+            _windSpeedLabel.transform.localRotation = Quaternion.identity;
+
+            RefreshMainRootVisibility();
+        }
+
+        private static UILabel CreateCenteredChildLabel(Transform parent, string name, Vector3 localPosition, int fontSize)
+        {
+            GameObject go = new(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localScale = Vector3.one;
+            go.transform.localPosition = localPosition;
+
+            UILabel label = go.AddComponent<UILabel>();
+            ConfigureCenteredLabel(label, fontSize);
+            label.text = string.Empty;
+            label.gameObject.SetActive(false);
+
+            return label;
         }
 
         internal static void RenderDayNightBlock(string text)
@@ -735,6 +886,27 @@ namespace InterloperHudPro
 
             if (_weightLabel != null)
                 _weightLabel.transform.localPosition = WeightPosition;
+
+            if (_windRoot != null)
+                _windRoot.transform.localPosition = WindRootPosition;
+
+            if (_windSpeedLabel != null)
+                _windSpeedLabel.transform.localPosition = WindSpeedLocalPosition;
+        }
+
+        private static void RefreshMainRootVisibility()
+        {
+            if (_mainRoot == null)
+                return;
+
+            bool anyVisible =
+                (_airTemperatureLabel != null && _airTemperatureLabel.gameObject.activeSelf) ||
+                (_windChillLabel != null && _windChillLabel.gameObject.activeSelf) ||
+                (_feelsLikeLabel != null && _feelsLikeLabel.gameObject.activeSelf) ||
+                (_weightLabel != null && _weightLabel.gameObject.activeSelf) ||
+                (_windRoot != null && _windRoot.activeSelf);
+
+            _mainRoot.SetActive(anyVisible);
         }
     }
 
@@ -752,7 +924,7 @@ namespace InterloperHudPro
             return timer != null ? timer.GetElapsedMinutes() : 0d;
         }
 
-        [HarmonyPatch(typeof(GameManager), "Start")]
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.Start))]
         private static class ResetHudRefsOnGameStart
         {
             private static void Postfix()
@@ -766,7 +938,7 @@ namespace InterloperHudPro
             }
         }
 
-        [HarmonyPatch(typeof(StatusBar), "Update")]
+        [HarmonyPatch(typeof(StatusBar), nameof(StatusBar.Update))]
         private static class MainHudPatch
         {
             internal static double LastUpdateMinutes = 0d;
@@ -787,6 +959,18 @@ namespace InterloperHudPro
 
                 HudRenderer.EnsureMainAnchor(__instance);
 
+                if (Settings.options.ShowWindDirection)
+                {
+                    if (HudLogic.TryGetWindDirectionHudData(out WindDirectionHudData windData))
+                        HudRenderer.RenderWindDirectionBlock(windData);
+                    else
+                        HudRenderer.HideWindDirectionBlock();
+                }
+                else
+                {
+                    HudRenderer.HideWindDirectionBlock();
+                }
+
                 double now = GetElapsedMinutes();
                 if (now - LastUpdateMinutes < TemperatureUpdateIntervalMinutes)
                     return;
@@ -797,29 +981,20 @@ namespace InterloperHudPro
                 TemperatureHudData temperatureData = default;
                 WeightHudData weightData = default;
 
-                if (needTemperatureData && !HudLogic.TryGetTemperatureHudData(out temperatureData))
-                {
-                    HudRenderer.HideMainBlock();
-                    return;
-                }
-
-                if (needWeightData && !HudLogic.TryGetWeightHudData(out weightData))
-                {
-                    HudRenderer.HideMainBlock();
-                    return;
-                }
+                bool hasTemperatureData = !needTemperatureData || HudLogic.TryGetTemperatureHudData(out temperatureData);
+                bool hasWeightData = !needWeightData || HudLogic.TryGetWeightHudData(out weightData);
 
                 HudRenderer.RenderMainBlock(
-                    needTemperatureData,
+                    needTemperatureData && hasTemperatureData,
                     temperatureData,
-                    needWeightData,
+                    needWeightData && hasWeightData,
                     weightData);
 
                 LastUpdateMinutes = now;
             }
         }
 
-        [HarmonyPatch(typeof(Panel_HUD), "Update")]
+        [HarmonyPatch(typeof(Panel_HUD), nameof(Panel_HUD.Update))]
         private static class DayNightHudPatch
         {
             internal static double LastUpdateMinutes = 0d;
@@ -850,7 +1025,7 @@ namespace InterloperHudPro
             }
         }
 
-        [HarmonyPatch(typeof(Panel_HUD), "Update")]
+        [HarmonyPatch(typeof(Panel_HUD), nameof(Panel_HUD.Update))]
         private static class ActiveItemHudPatch
         {
             internal static double LastUpdateMinutes = 0d;
@@ -881,7 +1056,7 @@ namespace InterloperHudPro
             }
         }
 
-        [HarmonyPatch(typeof(Panel_HUD), "Update")]
+        [HarmonyPatch(typeof(Panel_HUD), nameof(Panel_HUD.Update))]
         private static class WeakIceHudPatch
         {
             internal static double LastUpdateMinutes = 0d;
@@ -912,7 +1087,7 @@ namespace InterloperHudPro
             }
         }
 
-        [HarmonyPatch(typeof(Panel_IceFishingHoleClear), "Enable")]
+        [HarmonyPatch(typeof(Panel_IceFishingHoleClear), nameof(Panel_IceFishingHoleClear.Enable))]
         private static class IceFishingHoleClearEnablePatch
         {
             private static void Postfix(Panel_IceFishingHoleClear __instance)
@@ -921,7 +1096,7 @@ namespace InterloperHudPro
             }
         }
 
-        [HarmonyPatch(typeof(Panel_IceFishingHoleClear), "Update")]
+        [HarmonyPatch(typeof(Panel_IceFishingHoleClear), nameof(Panel_IceFishingHoleClear.Update))]
         private static class IceFishingHoleClearUpdatePatch
         {
             private static void Postfix(Panel_IceFishingHoleClear __instance)
