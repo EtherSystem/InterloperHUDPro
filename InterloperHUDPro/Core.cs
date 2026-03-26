@@ -2,7 +2,7 @@
 using InterloperHudPro;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.2.0", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.2.1", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -97,17 +97,26 @@ namespace InterloperHudPro
         }
     }
 
+    internal enum WindHudSeverity
+    {
+        Safe,
+        TooWindyForTorch,
+        TooWindyForFire
+    }
+
     internal readonly struct WindDirectionHudData
     {
         internal readonly float RelativeAngle;
         internal readonly bool IsOutdoors;
         internal readonly float SpeedMPH;
+        internal readonly WindHudSeverity Severity;
 
-        internal WindDirectionHudData(float relativeAngle, bool isOutdoors, float speedMph)
+        internal WindDirectionHudData(float relativeAngle, bool isOutdoors, float speedMph, WindHudSeverity severity)
         {
             RelativeAngle = relativeAngle;
             IsOutdoors = isOutdoors;
             SpeedMPH = speedMph;
+            Severity = severity;
         }
     }
 
@@ -119,6 +128,11 @@ namespace InterloperHudPro
         private const float PoorCirculationPenalty = -5f;
         private const float WeightUnitsToKilograms = 1e9f;
         private const float BaseWeakIceTimeSeconds = 5f;
+
+        // Fixed wind thresholds based on in-game testing
+        private const float TorchWindThresholdKmh = 48f;
+        private const float FireWindThresholdKmh = 65f;
+        private const float MphToKmhFactor = 1.60934f;
 
         private static IceCrackingManager? _cachedIceCrackingManager;
         private static bool _wasInsideWeakIceTrigger;
@@ -150,8 +164,8 @@ namespace InterloperHudPro
         {
             data = default;
 
-            var weather = GameManager.GetWeatherComponent();
-            var wind = GameManager.GetWindComponent();
+            Wind? wind = GameManager.GetWindComponent();
+            Weather? weather = GameManager.GetWeatherComponent();
 
             if (weather == null || wind == null)
                 return false;
@@ -159,8 +173,9 @@ namespace InterloperHudPro
             bool isOutdoors = !weather.IsIndoorEnvironment() && !weather.IsIndoorScene();
             float relativeAngle = wind.GetWindAngleRelativeToPlayer();
             float speedMph = wind.GetSpeedMPH();
+            WindHudSeverity severity = GetWindHudSeverity(isOutdoors, speedMph);
 
-            data = new WindDirectionHudData(relativeAngle, isOutdoors, speedMph);
+            data = new WindDirectionHudData(relativeAngle, isOutdoors, speedMph, severity);
             return true;
         }
 
@@ -172,8 +187,31 @@ namespace InterloperHudPro
                 return $"{Mathf.CeilToInt(data.SpeedMPH)} MPH";
             }
 
-            float speedKmh = data.SpeedMPH * 1.60934f;
+            float speedKmh = data.SpeedMPH * MphToKmhFactor;
             return $"{Mathf.CeilToInt(speedKmh)} KM/H";
+        }
+
+        private static WindHudSeverity GetWindHudSeverity(bool isOutdoors, float speedMph)
+        {
+            Wind? wind = GameManager.GetWindComponent();
+            if (wind == null)
+                return WindHudSeverity.Safe;
+
+            if (!isOutdoors)
+                return WindHudSeverity.Safe;
+
+            if (wind.PlayerShelteredFromWind())
+                return WindHudSeverity.Safe;
+
+            float speedKmh = speedMph * MphToKmhFactor;
+
+            if (speedKmh >= FireWindThresholdKmh)
+                return WindHudSeverity.TooWindyForFire;
+
+            if (speedKmh >= TorchWindThresholdKmh)
+                return WindHudSeverity.TooWindyForTorch;
+
+            return WindHudSeverity.Safe;
         }
 
         internal static bool TryGetTemperatureHudData(out TemperatureHudData data)
@@ -401,12 +439,12 @@ namespace InterloperHudPro
         private const string WindArrowLabelName = "InterloperHudPro_WindArrowLabel";
         private const string WindSpeedLabelName = "InterloperHudPro_WindSpeedLabel";
         private const string WindDirectionGlyph = "↑";
+
         private static float _indoorWindSpinAngle = 0f;
+
         private static Vector3 WindRootPosition => new(Settings.options.WindDirectionX, Settings.options.WindDirectionY, 0f);
         private static Vector3 WindArrowLocalPosition => new(0f, 0f, 0f);
         private static Vector3 WindSpeedLocalPosition => new(0f, -Settings.options.WindSpeedYOffset, 0f);
-
-        private static Vector3 WindDirectionPosition => new(Settings.options.WindDirectionX, 0f, 0f);
 
         private static GameObject? _windRoot;
         private static UILabel? _windArrowLabel;
@@ -424,6 +462,8 @@ namespace InterloperHudPro
         private static readonly Color DefaultTextColor = new(0.9f, 0.95f, 1f, 1f);
         private static readonly Color DangerTextColor = new(0.8f, 0.2f, 0.23f, 1f);
         private static readonly Color OutlineColor = new(0.125f, 0.094f, 0.094f, 0.6f);
+        private static readonly Color WindTorchBlockedColor = new(0.95f, 0.82f, 0.20f, 1f);
+        private static readonly Color WindFireBlockedColor = DangerTextColor;
 
         private static GameObject? _mainRoot;
 
@@ -543,13 +583,23 @@ namespace InterloperHudPro
             _windChillLabel = CreateMainChildLabel(WindChillLabelName, WindChillPosition);
             _feelsLikeLabel = CreateMainChildLabel(FeelsLikeLabelName, FeelsLikePosition);
             _weightLabel = CreateMainChildLabel(WeightLabelName, WeightPosition);
+
             _windRoot = new GameObject(WindRootName);
             _windRoot.transform.SetParent(_mainRoot.transform, false);
             _windRoot.transform.localScale = Vector3.one;
             _windRoot.transform.localPosition = WindRootPosition;
 
-            _windArrowLabel = CreateCenteredChildLabel(_windRoot.transform, WindArrowLabelName, WindArrowLocalPosition, Settings.options.WindArrowFontSize);
-            _windSpeedLabel = CreateCenteredChildLabel(_windRoot.transform, WindSpeedLabelName, WindSpeedLocalPosition, Settings.options.WindSpeedFontSize);
+            _windArrowLabel = CreateCenteredChildLabel(
+                _windRoot.transform,
+                WindArrowLabelName,
+                WindArrowLocalPosition,
+                Settings.options.WindArrowFontSize);
+
+            _windSpeedLabel = CreateCenteredChildLabel(
+                _windRoot.transform,
+                WindSpeedLabelName,
+                WindSpeedLocalPosition,
+                Settings.options.WindSpeedFontSize);
 
             RefreshMainLabelPositions();
 
@@ -628,9 +678,11 @@ namespace InterloperHudPro
 
             _windRoot.SetActive(true);
 
+            Color windColor = GetWindHudColor(data.Severity);
+
             _windArrowLabel.gameObject.SetActive(true);
             _windArrowLabel.text = WindDirectionGlyph;
-            _windArrowLabel.color = DefaultTextColor;
+            _windArrowLabel.color = windColor;
 
             if (data.IsOutdoors)
             {
@@ -639,18 +691,22 @@ namespace InterloperHudPro
             }
             else
             {
-                float directionMultiplier = Settings.options.IndoorWindSpinDirection == WindSpinDirection.Clockwise ? -1f : 1f;
+                float directionMultiplier =
+                    Settings.options.IndoorWindSpinDirection == WindSpinDirection.Clockwise ? -1f : 1f;
 
-                _indoorWindSpinAngle += Time.unscaledDeltaTime * Settings.options.IndoorWindSpinSpeed * directionMultiplier;
+                _indoorWindSpinAngle +=
+                    Time.unscaledDeltaTime * Settings.options.IndoorWindSpinSpeed * directionMultiplier;
 
-                if (_indoorWindSpinAngle >= 360f || _indoorWindSpinAngle <= -360f) _indoorWindSpinAngle = 0f;
+                if (_indoorWindSpinAngle >= 360f || _indoorWindSpinAngle <= -360f)
+                    _indoorWindSpinAngle = 0f;
 
-                _windArrowLabel.transform.localRotation = Quaternion.Euler(0f, 0f, _indoorWindSpinAngle);
+                _windArrowLabel.transform.localRotation =
+                    Quaternion.Euler(0f, 0f, _indoorWindSpinAngle);
             }
 
             _windSpeedLabel.gameObject.SetActive(true);
             _windSpeedLabel.text = HudLogic.FormatWindSpeedText(data);
-            _windSpeedLabel.color = DefaultTextColor;
+            _windSpeedLabel.color = windColor;
             _windSpeedLabel.transform.localRotation = Quaternion.identity;
 
             RefreshMainRootVisibility();
@@ -871,6 +927,16 @@ namespace InterloperHudPro
             ConfigureStandardLabel(label, fontSize);
             label.alignment = NGUIText.Alignment.Center;
             label.pivot = UIWidget.Pivot.Center;
+        }
+
+        private static Color GetWindHudColor(WindHudSeverity severity)
+        {
+            return severity switch
+            {
+                WindHudSeverity.TooWindyForTorch => WindTorchBlockedColor,
+                WindHudSeverity.TooWindyForFire => WindFireBlockedColor,
+                _ => DefaultTextColor
+            };
         }
 
         private static void RefreshMainLabelPositions()
