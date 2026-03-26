@@ -2,7 +2,7 @@
 using InterloperHudPro;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.2.2", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.2.3", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -150,12 +150,29 @@ namespace InterloperHudPro
                 || Settings.options.ShowFeelsLikeTemperature;
         }
 
+        internal static bool HasWindArrowContent()
+        {
+            return Settings.options.WindDisplayMode == WindHudDisplayMode.ArrowOnly
+                || Settings.options.WindDisplayMode == WindHudDisplayMode.ArrowAndSpeed;
+        }
+
+        internal static bool HasWindSpeedContent()
+        {
+            return Settings.options.WindDisplayMode == WindHudDisplayMode.SpeedOnly
+                || Settings.options.WindDisplayMode == WindHudDisplayMode.ArrowAndSpeed;
+        }
+
+        internal static bool HasWindHudContent()
+        {
+            return HasWindArrowContent() || HasWindSpeedContent();
+        }
+
         internal static bool HasMainHudContent()
         {
             return HasTemperatureHudContent()
+                || HasWindHudContent()
                 || Settings.options.ShowWeight
-                || Settings.options.ShowDayNight
-                || Settings.options.ShowWindDirection;
+                || Settings.options.ShowDayNight;
         }
 
         internal static bool TryGetWindDirectionHudData(out WindDirectionHudData data)
@@ -653,15 +670,7 @@ namespace InterloperHudPro
             _windArrowLabel.fontSize = Settings.options.WindArrowFontSize;
             _windSpeedLabel.fontSize = Settings.options.WindSpeedFontSize;
 
-            if (!Settings.options.ShowWindDirection)
-            {
-                _windRoot.SetActive(false);
-                RefreshMainRootVisibility();
-                return;
-            }
-
             bool showIndoors = Settings.options.ShowWindHudIndoors;
-
             if (!data.IsOutdoors && !showIndoors)
             {
                 _windRoot.SetActive(false);
@@ -669,38 +678,57 @@ namespace InterloperHudPro
                 return;
             }
 
-            _windRoot.SetActive(true);
+            bool showArrow = HudLogic.HasWindArrowContent();
+            bool showSpeed = HudLogic.HasWindSpeedContent();
+
+            _windRoot.SetActive(showArrow || showSpeed);
+
+            if (!showArrow && !showSpeed)
+            {
+                RefreshMainRootVisibility();
+                return;
+            }
 
             Color windColor = GetWindHudColor(data.Severity);
 
-            _windArrowLabel.gameObject.SetActive(true);
-            _windArrowLabel.text = WindDirectionGlyph;
-            _windArrowLabel.color = windColor;
-
-            if (data.IsOutdoors)
+            _windArrowLabel.gameObject.SetActive(showArrow);
+            if (showArrow)
             {
-                _windArrowLabel.transform.localRotation =
-                    Quaternion.Euler(0f, 0f, -data.RelativeAngle);
+                _windArrowLabel.text = WindDirectionGlyph;
+                _windArrowLabel.color = windColor;
+
+                if (data.IsOutdoors)
+                {
+                    _windArrowLabel.transform.localRotation =
+                        Quaternion.Euler(0f, 0f, -data.RelativeAngle);
+                }
+                else
+                {
+                    float directionMultiplier =
+                        Settings.options.IndoorWindSpinDirection == WindSpinDirection.Clockwise ? -1f : 1f;
+
+                    _indoorWindSpinAngle +=
+                        Time.unscaledDeltaTime * Settings.options.IndoorWindSpinSpeed * directionMultiplier;
+
+                    if (_indoorWindSpinAngle >= 360f || _indoorWindSpinAngle <= -360f)
+                        _indoorWindSpinAngle = 0f;
+
+                    _windArrowLabel.transform.localRotation =
+                        Quaternion.Euler(0f, 0f, _indoorWindSpinAngle);
+                }
+            }
+
+            _windSpeedLabel.gameObject.SetActive(showSpeed);
+            if (showSpeed)
+            {
+                _windSpeedLabel.text = HudLogic.FormatWindSpeedText(data);
+                _windSpeedLabel.color = windColor;
+                _windSpeedLabel.transform.localRotation = Quaternion.identity;
             }
             else
             {
-                float directionMultiplier =
-                    Settings.options.IndoorWindSpinDirection == WindSpinDirection.Clockwise ? -1f : 1f;
-
-                _indoorWindSpinAngle +=
-                    Time.unscaledDeltaTime * Settings.options.IndoorWindSpinSpeed * directionMultiplier;
-
-                if (_indoorWindSpinAngle >= 360f || _indoorWindSpinAngle <= -360f)
-                    _indoorWindSpinAngle = 0f;
-
-                _windArrowLabel.transform.localRotation =
-                    Quaternion.Euler(0f, 0f, _indoorWindSpinAngle);
+                _windSpeedLabel.text = string.Empty;
             }
-
-            _windSpeedLabel.gameObject.SetActive(true);
-            _windSpeedLabel.text = HudLogic.FormatWindSpeedText(data);
-            _windSpeedLabel.color = windColor;
-            _windSpeedLabel.transform.localRotation = Quaternion.identity;
 
             RefreshMainRootVisibility();
         }
@@ -1017,7 +1045,7 @@ namespace InterloperHudPro
 
                 HudRenderer.EnsureMainAnchor(__instance);
 
-                if (Settings.options.ShowWindDirection)
+                if (HudLogic.HasWindHudContent())
                 {
                     if (HudLogic.TryGetWindDirectionHudData(out WindDirectionHudData windData))
                         HudRenderer.RenderWindDirectionBlock(windData);

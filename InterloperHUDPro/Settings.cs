@@ -16,12 +16,13 @@
         [Description("Displays the temperature you actually feel after clothing and other effects are applied.")]
         public bool ShowFeelsLikeTemperature = true;
 
-        [Name("Show wind direction")]
-        [Description("Displays an arrow showing the wind direction relative to the player when outdoors.")]
-        public bool ShowWindDirection = true;
+        [Name("Wind HUD display mode")]
+        [Description("Choose whether to display nothing, the wind arrow, the wind speed text, or both.")]
+        [Choice("Nothing", "Arrow only", "Speed only", "Arrow and speed")]
+        public WindHudDisplayMode WindDisplayMode = WindHudDisplayMode.ArrowAndSpeed;
 
         [Name("Show wind HUD indoors")]
-        [Description("Keeps the wind direction and speed visible indoors. When indoors, the arrow spins instead of showing a real direction.")]
+        [Description("Keeps the selected wind HUD elements visible indoors. When the arrow is enabled indoors, it spins instead of showing a real direction.")]
         public bool ShowWindHudIndoors = false;
 
         [Name("Show carried weight")]
@@ -43,7 +44,6 @@
         [Name("Show thin ice break time")]
         [Description("Displays the remaining time before thin ice breaks under your feet.")]
         public bool ShowThinIceTime = true;
-
 
 
         [Section("HUD Customization")]
@@ -143,7 +143,6 @@
         public int ThinIceTimerYOffset = 210;
 
 
-
         [Section("Advanced")]
 
         [Name("Show advanced options")]
@@ -159,6 +158,14 @@
         {
             Clockwise,
             CounterClockwise
+        }
+
+        internal enum WindHudDisplayMode
+        {
+            None,
+            ArrowOnly,
+            SpeedOnly,
+            ArrowAndSpeed
         }
 
         protected override void OnChange(FieldInfo field, object? oldValue, object? newValue)
@@ -180,16 +187,17 @@
             SetFieldVisible(nameof(WindChillX), showTemperatureCustomization && ShowWindChill);
             SetFieldVisible(nameof(FeelsLikeX), showTemperatureCustomization && ShowFeelsLikeTemperature);
 
-            bool showWindCustomization = ShowWindCustomization && ShowWindDirection;
+            bool showWindCustomization = ShowWindCustomization && WindDisplayMode != WindHudDisplayMode.None;
+            bool showArrow = WindDisplayMode == WindHudDisplayMode.ArrowOnly || WindDisplayMode == WindHudDisplayMode.ArrowAndSpeed;
+            bool showSpeed = WindDisplayMode == WindHudDisplayMode.SpeedOnly || WindDisplayMode == WindHudDisplayMode.ArrowAndSpeed;
+
+            SetFieldVisible(nameof(IndoorWindSpinSpeed), showWindCustomization && ShowWindHudIndoors && showArrow);
+            SetFieldVisible(nameof(IndoorWindSpinDirection), showWindCustomization && ShowWindHudIndoors && showArrow);
             SetFieldVisible(nameof(WindDirectionX), showWindCustomization);
             SetFieldVisible(nameof(WindDirectionY), showWindCustomization);
-            SetFieldVisible(nameof(WindArrowFontSize), showWindCustomization);
-            SetFieldVisible(nameof(WindSpeedFontSize), showWindCustomization);
-            SetFieldVisible(nameof(WindSpeedYOffset), showWindCustomization);
-
-            bool showIndoorWindCustomization = showWindCustomization && ShowWindHudIndoors;
-            SetFieldVisible(nameof(IndoorWindSpinSpeed), showIndoorWindCustomization);
-            SetFieldVisible(nameof(IndoorWindSpinDirection), showIndoorWindCustomization);
+            SetFieldVisible(nameof(WindArrowFontSize), showWindCustomization && showArrow);
+            SetFieldVisible(nameof(WindSpeedFontSize), showWindCustomization && showSpeed);
+            SetFieldVisible(nameof(WindSpeedYOffset), showWindCustomization && showSpeed);
 
             SetFieldVisible(nameof(WeightX), ShowWeightCustomization && ShowWeight);
             SetFieldVisible(nameof(ActiveItemConditionX), ShowHeldItemCustomization && ShowActiveItemCondition);
