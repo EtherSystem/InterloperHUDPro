@@ -2,7 +2,7 @@
 using InterloperHudPro;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.2.1", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.2.2", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -100,8 +100,7 @@ namespace InterloperHudPro
     internal enum WindHudSeverity
     {
         Safe,
-        TooWindyForTorch,
-        TooWindyForFire
+        TooWindy
     }
 
     internal readonly struct WindDirectionHudData
@@ -129,9 +128,8 @@ namespace InterloperHudPro
         private const float WeightUnitsToKilograms = 1e9f;
         private const float BaseWeakIceTimeSeconds = 5f;
 
-        // Fixed wind thresholds based on in-game testing
-        private const float TorchWindThresholdKmh = 48f;
-        private const float FireWindThresholdKmh = 65f;
+        // Fixed wind threshold based on in-game testing
+        private const float WindDangerThresholdKmh = 49f;
         private const float MphToKmhFactor = 1.60934f;
 
         private static IceCrackingManager? _cachedIceCrackingManager;
@@ -205,11 +203,8 @@ namespace InterloperHudPro
 
             float speedKmh = speedMph * MphToKmhFactor;
 
-            if (speedKmh >= FireWindThresholdKmh)
-                return WindHudSeverity.TooWindyForFire;
-
-            if (speedKmh >= TorchWindThresholdKmh)
-                return WindHudSeverity.TooWindyForTorch;
+            if (speedKmh >= WindDangerThresholdKmh)
+                return WindHudSeverity.TooWindy;
 
             return WindHudSeverity.Safe;
         }
@@ -462,8 +457,6 @@ namespace InterloperHudPro
         private static readonly Color DefaultTextColor = new(0.9f, 0.95f, 1f, 1f);
         private static readonly Color DangerTextColor = new(0.8f, 0.2f, 0.23f, 1f);
         private static readonly Color OutlineColor = new(0.125f, 0.094f, 0.094f, 0.6f);
-        private static readonly Color WindTorchBlockedColor = new(0.95f, 0.82f, 0.20f, 1f);
-        private static readonly Color WindFireBlockedColor = DangerTextColor;
 
         private static GameObject? _mainRoot;
 
@@ -933,8 +926,7 @@ namespace InterloperHudPro
         {
             return severity switch
             {
-                WindHudSeverity.TooWindyForTorch => WindTorchBlockedColor,
-                WindHudSeverity.TooWindyForFire => WindFireBlockedColor,
+                WindHudSeverity.TooWindy => DangerTextColor,
                 _ => DefaultTextColor
             };
         }
