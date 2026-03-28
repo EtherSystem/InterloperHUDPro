@@ -2,7 +2,7 @@
 using InterloperHudPro;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.2.3", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.2.4", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -100,7 +100,8 @@ namespace InterloperHudPro
     internal enum WindHudSeverity
     {
         Safe,
-        TooWindy
+        Warning,
+        Danger
     }
 
     internal readonly struct WindDirectionHudData
@@ -128,8 +129,8 @@ namespace InterloperHudPro
         private const float WeightUnitsToKilograms = 1e9f;
         private const float BaseWeakIceTimeSeconds = 5f;
 
-        // Fixed wind threshold based on in-game testing
-        private const float WindDangerThresholdKmh = 49f;
+        private const float WindWarningThresholdKmh = 49f;
+        private const float WindDangerThresholdKmh = 65f;
         private const float MphToKmhFactor = 1.60934f;
 
         private static IceCrackingManager? _cachedIceCrackingManager;
@@ -221,7 +222,10 @@ namespace InterloperHudPro
             float speedKmh = speedMph * MphToKmhFactor;
 
             if (speedKmh >= WindDangerThresholdKmh)
-                return WindHudSeverity.TooWindy;
+                return WindHudSeverity.Danger;
+
+            if (speedKmh >= WindWarningThresholdKmh)
+                return WindHudSeverity.Warning;
 
             return WindHudSeverity.Safe;
         }
@@ -472,6 +476,7 @@ namespace InterloperHudPro
         private static Vector3 WeightPosition => new(Settings.options.WeightX, 0f, 0f);
 
         private static readonly Color DefaultTextColor = new(0.9f, 0.95f, 1f, 1f);
+        private static readonly Color WarningTextColor = new(0.95f, 0.55f, 0.15f, 1f);
         private static readonly Color DangerTextColor = new(0.8f, 0.2f, 0.23f, 1f);
         private static readonly Color OutlineColor = new(0.125f, 0.094f, 0.094f, 0.6f);
 
@@ -533,8 +538,7 @@ namespace InterloperHudPro
 
         internal static void HideWindDirectionBlock()
         {
-            if (_windRoot != null)
-                _windRoot.SetActive(false);
+            _windRoot?.SetActive(false);
 
             RefreshMainRootVisibility();
         }
@@ -689,7 +693,7 @@ namespace InterloperHudPro
                 return;
             }
 
-            Color windColor = GetWindHudColor(data.Severity);
+            Color windColor = data.IsOutdoors ? GetWindHudColor(data.Severity) : DefaultTextColor;
 
             _windArrowLabel.gameObject.SetActive(showArrow);
             if (showArrow)
@@ -733,44 +737,26 @@ namespace InterloperHudPro
             RefreshMainRootVisibility();
         }
 
-        private static UILabel CreateCenteredChildLabel(Transform parent, string name, Vector3 localPosition, int fontSize)
-        {
-            GameObject go = new(name);
-            go.transform.SetParent(parent, false);
-            go.transform.localScale = Vector3.one;
-            go.transform.localPosition = localPosition;
-
-            UILabel label = go.AddComponent<UILabel>();
-            ConfigureCenteredLabel(label, fontSize);
-            label.text = string.Empty;
-            label.gameObject.SetActive(false);
-
-            return label;
-        }
-
         internal static void RenderDayNightBlock(string text)
         {
-            if (_mainRoot == null)
-                return;
-
-            if (_dayNightLabel == null)
+            UILabel label = GetOrCreateDayNightLabel();
+            if (label == null)
             {
-                GameObject parentObject = _mainRoot.transform.parent.gameObject;
-
-                _dayNightLabel = NGUITools.AddWidget<UILabel>(parentObject);
-                _dayNightLabel.name = DayNightLabelName;
-                ConfigureStandardLabel(_dayNightLabel, MainFontSize);
-
-                InterloperHudProMain.Log("Day/night label created.");
+                HideDayNightBlock();
+                return;
             }
 
-            int yOffset = _mainRoot.activeSelf ? _mainLineHeight + 10 : 0;
+            bool mainBlockVisible = _mainRoot != null && _mainRoot.activeSelf;
+            float baseX = _mainRoot != null ? _mainRoot.transform.localPosition.x : 0f;
+            float baseY = _mainRoot != null ? _mainRoot.transform.localPosition.y : 0f;
 
-            _dayNightLabel.transform.localPosition =
-                _mainRoot.transform.localPosition + new Vector3(0f, yOffset, 0f);
+            float yOffset = mainBlockVisible
+                ? _mainLineHeight + 8f
+                : 8f;
 
-            _dayNightLabel.gameObject.SetActive(true);
-            _dayNightLabel.text = text;
+            label.transform.localPosition = new Vector3(baseX, baseY + yOffset, 0f);
+            label.text = text;
+            label.gameObject.SetActive(true);
         }
 
         internal static void RenderActiveItemBlock(Panel_HUD hud, string text)
@@ -824,6 +810,40 @@ namespace InterloperHudPro
             label.gameObject.SetActive(false);
 
             return label;
+        }
+
+        private static UILabel CreateCenteredChildLabel(Transform parent, string name, Vector3 localPosition, int fontSize)
+        {
+            GameObject go = new(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localScale = Vector3.one;
+            go.transform.localPosition = localPosition;
+
+            UILabel label = go.AddComponent<UILabel>();
+            ConfigureCenteredLabel(label, fontSize);
+            label.text = string.Empty;
+            label.gameObject.SetActive(false);
+
+            return label;
+        }
+
+        private static UILabel GetOrCreateDayNightLabel()
+        {
+            if (_dayNightLabel != null)
+                return _dayNightLabel;
+
+            if (_mainRoot == null)
+                return null!;
+
+            GameObject labelObject = new(DayNightLabelName);
+            labelObject.transform.SetParent(_mainRoot.transform.parent, false);
+            labelObject.transform.localScale = Vector3.one;
+
+            _dayNightLabel = labelObject.AddComponent<UILabel>();
+            ConfigureStandardLabel(_dayNightLabel, MainFontSize);
+
+            InterloperHudProMain.Log("Day/night label created.");
+            return _dayNightLabel;
         }
 
         private static void SetLabelState(UILabel label, bool visible, string text, Color color)
@@ -954,7 +974,8 @@ namespace InterloperHudPro
         {
             return severity switch
             {
-                WindHudSeverity.TooWindy => DangerTextColor,
+                WindHudSeverity.Warning => WarningTextColor,
+                WindHudSeverity.Danger => DangerTextColor,
                 _ => DefaultTextColor
             };
         }
@@ -994,6 +1015,7 @@ namespace InterloperHudPro
 
             _mainRoot.SetActive(anyVisible);
         }
+
     }
 
     // -------------------------------------------------------------------------

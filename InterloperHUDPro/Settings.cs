@@ -45,7 +45,6 @@
         [Description("Displays the remaining time before thin ice breaks under your feet.")]
         public bool ShowThinIceTime = true;
 
-
         [Section("HUD Customization")]
 
         [Name("Customize temperature HUD")]
@@ -67,7 +66,6 @@
         [Slider(0, 250, 250)]
         public int FeelsLikeX = 120;
 
-
         [Name("Customize wind HUD")]
         [Description("Show customization settings for the wind direction and wind speed HUD.")]
         public bool ShowWindCustomization = false;
@@ -83,12 +81,12 @@
         public WindSpinDirection IndoorWindSpinDirection = WindSpinDirection.Clockwise;
 
         [Name("Wind HUD X position")]
-        [Description("Moves the wind display left or right. Default: 355.")]
+        [Description("Moves the wind display anchor left or right. Default: 355.")]
         [Slider(-10, 2000, 2010)]
         public int WindDirectionX = 355;
 
         [Name("Wind HUD Y position")]
-        [Description("Moves the wind display up or down. Default: -45.")]
+        [Description("Moves the wind display anchor up or down. Default: -45.")]
         [Slider(-100, 1005, 1105)]
         public int WindDirectionY = -45;
 
@@ -107,7 +105,6 @@
         [Slider(10, 60, 50)]
         public int WindSpeedYOffset = 50;
 
-
         [Name("Customize weight HUD")]
         [Description("Show customization settings for the carried weight display.")]
         public bool ShowWeightCustomization = false;
@@ -117,7 +114,6 @@
         [Slider(0, 250, 250)]
         public int WeightX = 195;
 
-
         [Name("Customize held item HUD")]
         [Description("Show customization settings for the held item condition display.")]
         public bool ShowHeldItemCustomization = false;
@@ -126,7 +122,6 @@
         [Description("Moves the held item condition display left or right. Default: 95.")]
         [Slider(0, 100, 100)]
         public int ActiveItemConditionX = 95;
-
 
         [Name("Customize thin ice HUD")]
         [Description("Show customization settings for the thin ice timer.")]
@@ -142,7 +137,6 @@
         [Slider(120, 300, 180)]
         public int ThinIceTimerYOffset = 210;
 
-
         [Section("Advanced")]
 
         [Name("Show advanced options")]
@@ -152,7 +146,6 @@
         [Name("ML Logging")]
         [Description("Add logs for ModData/Boredom/Depression behavior in the ML console.")]
         public bool IsLogging = false;
-
 
         internal enum WindSpinDirection
         {
