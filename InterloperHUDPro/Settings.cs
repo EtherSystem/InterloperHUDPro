@@ -23,11 +23,15 @@
 
         [Name("Show wind HUD indoors")]
         [Description("Keeps the selected wind HUD elements visible indoors. When the arrow is enabled indoors, it spins instead of showing a real direction.")]
-        public bool ShowWindHudIndoors = false;
+        public bool ShowWindHudIndoors = true;
 
         [Name("Show carried weight")]
         [Description("Displays your current carried weight.")]
         public bool ShowWeight = true;
+
+        [Name("Show movement speed")]
+        [Description("Displays your current horizontal movement speed.")]
+        public bool ShowMovementSpeed = true;
 
         [Name("Show day and time")]
         [Description("Displays the current day and time above the HUD block.")]
@@ -44,6 +48,8 @@
         [Name("Show thin ice break time")]
         [Description("Displays the remaining time before thin ice breaks under your feet.")]
         public bool ShowThinIceTime = true;
+
+
 
         [Section("HUD Customization")]
 
@@ -113,6 +119,25 @@
         [Description("Moves the carried weight display left or right. Default: 195.")]
         [Slider(0, 250, 250)]
         public int WeightX = 195;
+
+        [Name("Customize movement speed HUD")]
+        [Description("Show customization settings for the movement speed display.")]
+        public bool ShowMovementSpeedCustomization = false;
+
+        [Name("Movement speed X position")]
+        [Description("Moves the movement speed display left or right. Default: 50.")]
+        [Slider(-10, 2000, 2010)]
+        public int MovementSpeedX = 50;
+
+        [Name("Movement speed Y position")]
+        [Description("Moves the movement speed display up or down. Default: -97.")]
+        [Slider(-150, 1005, 1155)]
+        public int MovementSpeedY = -97;
+
+        [Name("Movement speed size")]
+        [Description("Controls the size of the movement speed text. Default: 22.")]
+        [Slider(14, 48, 34)]
+        public int MovementSpeedFontSize = 22;
 
         [Name("Customize held item HUD")]
         [Description("Show customization settings for the held item condition display.")]
@@ -193,6 +218,9 @@
             SetFieldVisible(nameof(WindSpeedYOffset), showWindCustomization && showSpeed);
 
             SetFieldVisible(nameof(WeightX), ShowWeightCustomization && ShowWeight);
+            SetFieldVisible(nameof(MovementSpeedX), ShowMovementSpeedCustomization && ShowMovementSpeed);
+            SetFieldVisible(nameof(MovementSpeedY), ShowMovementSpeedCustomization && ShowMovementSpeed);
+            SetFieldVisible(nameof(MovementSpeedFontSize), ShowMovementSpeedCustomization && ShowMovementSpeed);
             SetFieldVisible(nameof(ActiveItemConditionX), ShowHeldItemCustomization && ShowActiveItemCondition);
             SetFieldVisible(nameof(ThinIceTimerFontSize), ShowThinIceCustomization && ShowThinIceTime);
             SetFieldVisible(nameof(ThinIceTimerYOffset), ShowThinIceCustomization && ShowThinIceTime);

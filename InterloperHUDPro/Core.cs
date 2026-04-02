@@ -2,7 +2,7 @@
 using InterloperHudPro;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.2.4", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.3.0", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -63,6 +63,15 @@ namespace InterloperHudPro
         }
     }
 
+    internal readonly struct MovementSpeedHudData
+    {
+        internal readonly float SpeedMetersPerSecond;
+
+        internal MovementSpeedHudData(float speedMetersPerSecond)
+        {
+            SpeedMetersPerSecond = speedMetersPerSecond;
+        }
+    }
     internal readonly struct ActiveItemHudData
     {
         internal readonly float ConditionPercent;
@@ -173,7 +182,40 @@ namespace InterloperHudPro
             return HasTemperatureHudContent()
                 || HasWindHudContent()
                 || Settings.options.ShowWeight
+                || Settings.options.ShowMovementSpeed
                 || Settings.options.ShowDayNight;
+        }
+
+        internal static bool TryGetMovementSpeedHudData(out MovementSpeedHudData data)
+        {
+            data = default;
+
+            var player = GameManager.GetPlayerManagerComponent();
+            if (player == null)
+                return false;
+
+            PlayerMovement? playerMovement = player.GetComponent<PlayerMovement>();
+            if (playerMovement == null)
+                return false;
+
+            Vector3 velocity = playerMovement.GetVelocity();
+            velocity.y = 0f;
+
+            data = new MovementSpeedHudData(velocity.magnitude);
+            return true;
+        }
+
+        internal static string FormatMovementSpeedHudText(MovementSpeedHudData data)
+        {
+            SettingsState settings = SettingsState.Instance;
+            if (settings != null && settings.m_Units == MeasurementUnits.Imperial)
+            {
+                float speedMph = data.SpeedMetersPerSecond * 2.23694f;
+                return $"{speedMph:F1} MPH";
+            }
+
+            float speedKmh = data.SpeedMetersPerSecond * 3.6f;
+            return $"{speedKmh:F1} KM/H";
         }
 
         internal static bool TryGetWindDirectionHudData(out WindDirectionHudData data)
@@ -454,6 +496,7 @@ namespace InterloperHudPro
         private const string WindRootName = "InterloperHudPro_WindRoot";
         private const string WindArrowLabelName = "InterloperHudPro_WindArrowLabel";
         private const string WindSpeedLabelName = "InterloperHudPro_WindSpeedLabel";
+        private const string MovementSpeedLabelName = "InterloperHudPro_MovementSpeedLabel";
         private const string WindDirectionGlyph = "↑";
 
         private static float _indoorWindSpinAngle = 0f;
@@ -461,10 +504,12 @@ namespace InterloperHudPro
         private static Vector3 WindRootPosition => new(Settings.options.WindDirectionX, Settings.options.WindDirectionY, 0f);
         private static Vector3 WindArrowLocalPosition => new(0f, 0f, 0f);
         private static Vector3 WindSpeedLocalPosition => new(0f, -Settings.options.WindSpeedYOffset, 0f);
+        private static Vector3 MovementSpeedPosition => new(Settings.options.MovementSpeedX, Settings.options.MovementSpeedY, 0f);
 
         private static GameObject? _windRoot;
         private static UILabel? _windArrowLabel;
         private static UILabel? _windSpeedLabel;
+        private static UILabel? _movementSpeedLabel;
 
         private const int MainFontSize = 32;
         private const int SmallFontSize = 20;
@@ -532,6 +577,7 @@ namespace InterloperHudPro
             _windChillLabel = null;
             _feelsLikeLabel = null;
             _weightLabel = null;
+            _movementSpeedLabel = null;
 
             InterloperHudProMain.Log("HUD renderer reset.");
         }
@@ -597,6 +643,7 @@ namespace InterloperHudPro
             _windChillLabel = CreateMainChildLabel(WindChillLabelName, WindChillPosition);
             _feelsLikeLabel = CreateMainChildLabel(FeelsLikeLabelName, FeelsLikePosition);
             _weightLabel = CreateMainChildLabel(WeightLabelName, WeightPosition);
+            _movementSpeedLabel = CreateMainChildLabel(MovementSpeedLabelName, MovementSpeedPosition);
 
             _windRoot = new GameObject(WindRootName);
             _windRoot.transform.SetParent(_mainRoot.transform, false);
@@ -620,12 +667,17 @@ namespace InterloperHudPro
             InterloperHudProMain.Log("Main HUD anchor created.");
         }
 
-        internal static void RenderMainBlock(bool hasTemperatureData, TemperatureHudData temperatureData, bool hasWeightData, WeightHudData weightData)
+        internal static void RenderMainBlock(bool hasTemperatureData, TemperatureHudData temperatureData, bool hasWeightData, WeightHudData weightData, bool hasMovementSpeedData, MovementSpeedHudData movementSpeedData)
         {
             RefreshMainLabelPositions();
 
-            if (_mainRoot == null || _airTemperatureLabel == null || _windChillLabel == null || _feelsLikeLabel == null || _weightLabel == null)
+            if (_mainRoot == null || _airTemperatureLabel == null || _windChillLabel == null || _feelsLikeLabel == null || _weightLabel == null || _movementSpeedLabel == null)
                 return;
+
+            _movementSpeedLabel.fontSize = Settings.options.MovementSpeedFontSize;
+            _movementSpeedLabel.effectDistance = Settings.options.MovementSpeedFontSize >= MainFontSize
+                ? new Vector2(1.7f, 1.7f)
+                : new Vector2(1.5f, 1.5f);
 
             Color temperatureColor = hasTemperatureData && temperatureData.UseDangerColor
                 ? DangerTextColor
@@ -658,6 +710,12 @@ namespace InterloperHudPro
                 Settings.options.ShowWeight && hasWeightData,
                 hasWeightData ? HudLogic.FormatWeightHudText(weightData) : string.Empty,
                 weightColor);
+
+            SetLabelState(
+                _movementSpeedLabel,
+                Settings.options.ShowMovementSpeed && hasMovementSpeedData,
+                hasMovementSpeedData ? HudLogic.FormatMovementSpeedHudText(movementSpeedData) : string.Empty,
+                DefaultTextColor);
 
             RefreshMainRootVisibility();
         }
@@ -999,6 +1057,9 @@ namespace InterloperHudPro
 
             if (_windSpeedLabel != null)
                 _windSpeedLabel.transform.localPosition = WindSpeedLocalPosition;
+
+            if (_movementSpeedLabel != null)
+                _movementSpeedLabel.transform.localPosition = MovementSpeedPosition;
         }
 
         private static void RefreshMainRootVisibility()
@@ -1011,6 +1072,7 @@ namespace InterloperHudPro
                 (_windChillLabel != null && _windChillLabel.gameObject.activeSelf) ||
                 (_feelsLikeLabel != null && _feelsLikeLabel.gameObject.activeSelf) ||
                 (_weightLabel != null && _weightLabel.gameObject.activeSelf) ||
+                (_movementSpeedLabel != null && _movementSpeedLabel.gameObject.activeSelf) ||
                 (_windRoot != null && _windRoot.activeSelf);
 
             _mainRoot.SetActive(anyVisible);
@@ -1023,7 +1085,7 @@ namespace InterloperHudPro
     // -------------------------------------------------------------------------
     internal static class Patches
     {
-        private const double TemperatureUpdateIntervalMinutes = 0.1d;
+        private const double TemperatureUpdateIntervalMinutes = 0.01d;
         private const double GeneralHudUpdateIntervalMinutes = 0.01d;
 
         private static double GetElapsedMinutes()
@@ -1085,18 +1147,23 @@ namespace InterloperHudPro
 
                 bool needTemperatureData = HudLogic.HasTemperatureHudContent();
                 bool needWeightData = Settings.options.ShowWeight;
+                bool needMovementSpeedData = Settings.options.ShowMovementSpeed;
 
                 TemperatureHudData temperatureData = default;
                 WeightHudData weightData = default;
+                MovementSpeedHudData movementSpeedData = default;
 
                 bool hasTemperatureData = !needTemperatureData || HudLogic.TryGetTemperatureHudData(out temperatureData);
                 bool hasWeightData = !needWeightData || HudLogic.TryGetWeightHudData(out weightData);
+                bool hasMovementSpeedData = !needMovementSpeedData || HudLogic.TryGetMovementSpeedHudData(out movementSpeedData);
 
                 HudRenderer.RenderMainBlock(
                     needTemperatureData && hasTemperatureData,
                     temperatureData,
                     needWeightData && hasWeightData,
-                    weightData);
+                    weightData,
+                    needMovementSpeedData && hasMovementSpeedData,
+                    movementSpeedData);
 
                 LastUpdateMinutes = now;
             }
