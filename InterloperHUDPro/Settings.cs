@@ -33,9 +33,13 @@
         [Description("Displays your current horizontal movement speed.")]
         public bool ShowMovementSpeed = true;
 
-        [Name("Show day and time")]
-        [Description("Displays the current day and time above the HUD block.")]
-        public bool ShowDayNight = true;
+        [Name("Show day")]
+        [Description("Displays the current day.")]
+        public bool ShowDay = true;
+
+        [Name("Show time")]
+        [Description("Displays the current time.")]
+        public bool ShowTime = true;
 
         [Name("Show held item condition")]
         [Description("Displays the condition of the item currently held in your hands.")]
@@ -71,6 +75,30 @@
         [Description("Moves the feels like temperature display left or right. Default: 120.")]
         [Slider(0, 250, 250)]
         public int FeelsLikeX = 120;
+
+        [Name("Customize day/time HUD")]
+        [Description("Show customization settings for the day and time displays.")]
+        public bool ShowDayTimeCustomization = false;
+
+        [Name("Day HUD X position")]
+        [Description("Moves the day display anchor left or right. Default: -20.")]
+        [Slider(-50, 2000, 2050)]
+        public int DayHudX = -20;
+
+        [Name("Day HUD Y position")]
+        [Description("Moves the day display anchor up or down. Default: 95.")]
+        [Slider(-100, 1005, 1105)]
+        public int DayHudY = 95;
+
+        [Name("Time HUD X position")]
+        [Description("Moves the time display anchor left or right. Default: 100.")]
+        [Slider(-10, 2000, 2010)]
+        public int TimeHudX = 100;
+
+        [Name("Time HUD Y position")]
+        [Description("Moves the time display anchor up or down. Default: 95.")]
+        [Slider(-100, 1005, 1105)]
+        public int TimeHudY = 95;
 
         [Name("Customize wind HUD")]
         [Description("Show customization settings for the wind direction and wind speed HUD.")]
@@ -115,10 +143,15 @@
         [Description("Show customization settings for the carried weight display.")]
         public bool ShowWeightCustomization = false;
 
-        [Name("Carried weight position")]
+        [Name("Carried weight X position")]
         [Description("Moves the carried weight display left or right. Default: 195.")]
-        [Slider(0, 250, 250)]
+        [Slider(-50, 2000, 2050)]
         public int WeightX = 195;
+
+        [Name("Carried weight Y position")]
+        [Description("Moves the carried weight display up or down. Default: 0.")]
+        [Slider(-100, 1005, 1105)]
+        public int WeightY = 0;
 
         [Name("Customize movement speed HUD")]
         [Description("Show customization settings for the movement speed display.")]
@@ -209,6 +242,11 @@
             bool showArrow = WindDisplayMode == WindHudDisplayMode.ArrowOnly || WindDisplayMode == WindHudDisplayMode.ArrowAndSpeed;
             bool showSpeed = WindDisplayMode == WindHudDisplayMode.SpeedOnly || WindDisplayMode == WindHudDisplayMode.ArrowAndSpeed;
 
+            SetFieldVisible(nameof(DayHudX), ShowDayTimeCustomization && ShowDay);
+            SetFieldVisible(nameof(DayHudY), ShowDayTimeCustomization && ShowDay);
+            SetFieldVisible(nameof(TimeHudX), ShowDayTimeCustomization && ShowTime);
+            SetFieldVisible(nameof(TimeHudY), ShowDayTimeCustomization && ShowTime);
+
             SetFieldVisible(nameof(IndoorWindSpinSpeed), showWindCustomization && ShowWindHudIndoors && showArrow);
             SetFieldVisible(nameof(IndoorWindSpinDirection), showWindCustomization && ShowWindHudIndoors && showArrow);
             SetFieldVisible(nameof(WindDirectionX), showWindCustomization);
@@ -218,6 +256,7 @@
             SetFieldVisible(nameof(WindSpeedYOffset), showWindCustomization && showSpeed);
 
             SetFieldVisible(nameof(WeightX), ShowWeightCustomization && ShowWeight);
+            SetFieldVisible(nameof(WeightY), ShowWeightCustomization && ShowWeight);
             SetFieldVisible(nameof(MovementSpeedX), ShowMovementSpeedCustomization && ShowMovementSpeed);
             SetFieldVisible(nameof(MovementSpeedY), ShowMovementSpeedCustomization && ShowMovementSpeed);
             SetFieldVisible(nameof(MovementSpeedFontSize), ShowMovementSpeedCustomization && ShowMovementSpeed);

@@ -2,7 +2,7 @@
 using InterloperHudPro;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.3.0", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.3.1", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -183,7 +183,8 @@ namespace InterloperHudPro
                 || HasWindHudContent()
                 || Settings.options.ShowWeight
                 || Settings.options.ShowMovementSpeed
-                || Settings.options.ShowDayNight;
+                || Settings.options.ShowDay
+                || Settings.options.ShowTime;
         }
 
         internal static bool TryGetMovementSpeedHudData(out MovementSpeedHudData data)
@@ -429,32 +430,37 @@ namespace InterloperHudPro
             return $"{data.ConditionPercent:F0}%";
         }
 
-        internal static string FormatDayNightHudText(DayNightHudData data)
+        internal static string FormatDayHudText(DayNightHudData data)
         {
             return Localization.Language switch
             {
-                "English" => $"Day {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "German" => $"Tag {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Russian" => $"День {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "French (France)" => $"Jour {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Japanese" => $"{data.Day}日  {data.Hour:D2}:{data.Minute:D2}",
-                "Korean" => $"{data.Day}일  {data.Hour:D2}:{data.Minute:D2}",
-                "Simplified Chinese" => $"第{data.Day}天  {data.Hour:D2}:{data.Minute:D2}",
-                "Swedish" => $"Dag {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Traditional Chinese" => $"第{data.Day}天  {data.Hour:D2}:{data.Minute:D2}",
-                "Turkish" => $"Gün {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Norwegian" => $"Dag {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Spanish (Spain)" => $"Día {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Portuguese (Portugal)" => $"Dia {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Portuguese (Brazil)" => $"Dia {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Dutch" => $"Dag {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Finnish" => $"Päivä {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Italian" => $"Giorno {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Polish" => $"Dzień {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "Ukrainian" => $"День {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                "NOTES" => $"Day {data.Day}  {data.Hour:D2}:{data.Minute:D2}",
-                _ => $"Day {data.Day}  {data.Hour:D2}:{data.Minute:D2}"
+                "English" => $"Day {data.Day}",
+                "German" => $"Tag {data.Day}",
+                "Russian" => $"День {data.Day}",
+                "French (France)" => $"Jour {data.Day}",
+                "Japanese" => $"{data.Day}日",
+                "Korean" => $"{data.Day}일",
+                "Simplified Chinese" => $"第{data.Day}天",
+                "Swedish" => $"Dag {data.Day}",
+                "Traditional Chinese" => $"第{data.Day}天",
+                "Turkish" => $"Gün {data.Day}",
+                "Norwegian" => $"Dag {data.Day}",
+                "Spanish (Spain)" => $"Día {data.Day}",
+                "Portuguese (Portugal)" => $"Dia {data.Day}",
+                "Portuguese (Brazil)" => $"Dia {data.Day}",
+                "Dutch" => $"Dag {data.Day}",
+                "Finnish" => $"Päivä {data.Day}",
+                "Italian" => $"Giorno {data.Day}",
+                "Polish" => $"Dzień {data.Day}",
+                "Ukrainian" => $"День {data.Day}",
+                "NOTES" => $"Day {data.Day}",
+                _ => $"Day {data.Day}"
             };
+        }
+
+        internal static string FormatTimeHudText(DayNightHudData data)
+        {
+            return $"{data.Hour:D2}:{data.Minute:D2}";
         }
 
         internal static string FormatBreakIceTimeText(float gameMinutes)
@@ -490,7 +496,8 @@ namespace InterloperHudPro
         private const string WindChillLabelName = "InterloperHudPro_WindChillLabel";
         private const string FeelsLikeLabelName = "InterloperHudPro_FeelsLikeLabel";
         private const string WeightLabelName = "InterloperHudPro_WeightLabel";
-        private const string DayNightLabelName = "InterloperHudPro_DayNightLabel";
+        private const string DayLabelName = "InterloperHudPro_DayLabel";
+        private const string TimeLabelName = "InterloperHudPro_TimeLabel";
         private const string ActiveItemLabelName = "InterloperHudPro_ActiveItemConditionLabel";
         private const string WeakIceTimerLabelName = "InterloperHudPro_WeakIceTimerLabel";
         private const string WindRootName = "InterloperHudPro_WindRoot";
@@ -518,7 +525,9 @@ namespace InterloperHudPro
         private static Vector3 AirTemperaturePosition => new(Settings.options.AirTemperatureX, 0f, 0f);
         private static Vector3 WindChillPosition => new(Settings.options.WindChillX, 0f, 0f);
         private static Vector3 FeelsLikePosition => new(Settings.options.FeelsLikeX, 0f, 0f);
-        private static Vector3 WeightPosition => new(Settings.options.WeightX, 0f, 0f);
+        private static Vector3 WeightPosition => new(Settings.options.WeightX, Settings.options.WeightY, 0f);
+        private static Vector3 DayHudPosition => new(Settings.options.DayHudX, Settings.options.DayHudY, 0f);
+        private static Vector3 TimeHudPosition => new(Settings.options.TimeHudX, Settings.options.TimeHudY, 0f);
 
         private static readonly Color DefaultTextColor = new(0.9f, 0.95f, 1f, 1f);
         private static readonly Color WarningTextColor = new(0.95f, 0.55f, 0.15f, 1f);
@@ -532,7 +541,8 @@ namespace InterloperHudPro
         private static UILabel? _feelsLikeLabel;
         private static UILabel? _weightLabel;
 
-        private static UILabel? _dayNightLabel;
+        private static UILabel? _dayLabel;
+        private static UILabel? _timeLabel;
         private static UILabel? _activeItemLabel;
         private static UILabel? _weakIceTimerLabel;
 
@@ -546,10 +556,16 @@ namespace InterloperHudPro
                 _mainRoot = null;
             }
 
-            if (_dayNightLabel != null)
+            if (_dayLabel != null)
             {
-                UnityEngine.Object.Destroy(_dayNightLabel.gameObject);
-                _dayNightLabel = null;
+                UnityEngine.Object.Destroy(_dayLabel.gameObject);
+                _dayLabel = null;
+            }
+
+            if (_timeLabel != null)
+            {
+                UnityEngine.Object.Destroy(_timeLabel.gameObject);
+                _timeLabel = null;
             }
 
             if (_activeItemLabel != null)
@@ -594,9 +610,20 @@ namespace InterloperHudPro
             _mainRoot?.SetActive(false);
         }
 
-        internal static void HideDayNightBlock()
+        internal static void HideDayBlock()
         {
-            _dayNightLabel?.gameObject.SetActive(false);
+            _dayLabel?.gameObject.SetActive(false);
+        }
+
+        internal static void HideTimeBlock()
+        {
+            _timeLabel?.gameObject.SetActive(false);
+        }
+
+        internal static void HideDayTimeBlocks()
+        {
+            HideDayBlock();
+            HideTimeBlock();
         }
 
         internal static void HideActiveItemBlock()
@@ -795,24 +822,30 @@ namespace InterloperHudPro
             RefreshMainRootVisibility();
         }
 
-        internal static void RenderDayNightBlock(string text)
+        internal static void RenderDayBlock(string text)
         {
-            UILabel label = GetOrCreateDayNightLabel();
+            UILabel label = GetOrCreateDayLabel();
             if (label == null)
             {
-                HideDayNightBlock();
+                HideDayBlock();
                 return;
             }
 
-            bool mainBlockVisible = _mainRoot != null && _mainRoot.activeSelf;
-            float baseX = _mainRoot != null ? _mainRoot.transform.localPosition.x : 0f;
-            float baseY = _mainRoot != null ? _mainRoot.transform.localPosition.y : 0f;
+            label.transform.localPosition = DayHudPosition;
+            label.text = text;
+            label.gameObject.SetActive(true);
+        }
 
-            float yOffset = mainBlockVisible
-                ? _mainLineHeight + 8f
-                : 8f;
+        internal static void RenderTimeBlock(string text)
+        {
+            UILabel label = GetOrCreateTimeLabel();
+            if (label == null)
+            {
+                HideTimeBlock();
+                return;
+            }
 
-            label.transform.localPosition = new Vector3(baseX, baseY + yOffset, 0f);
+            label.transform.localPosition = TimeHudPosition;
             label.text = text;
             label.gameObject.SetActive(true);
         }
@@ -885,23 +918,42 @@ namespace InterloperHudPro
             return label;
         }
 
-        private static UILabel GetOrCreateDayNightLabel()
+        private static UILabel GetOrCreateDayLabel()
         {
-            if (_dayNightLabel != null)
-                return _dayNightLabel;
+            if (_dayLabel != null)
+                return _dayLabel;
 
             if (_mainRoot == null)
                 return null!;
 
-            GameObject labelObject = new(DayNightLabelName);
+            GameObject labelObject = new(DayLabelName);
             labelObject.transform.SetParent(_mainRoot.transform.parent, false);
             labelObject.transform.localScale = Vector3.one;
 
-            _dayNightLabel = labelObject.AddComponent<UILabel>();
-            ConfigureStandardLabel(_dayNightLabel, MainFontSize);
+            _dayLabel = labelObject.AddComponent<UILabel>();
+            ConfigureStandardLabel(_dayLabel, MainFontSize);
 
-            InterloperHudProMain.Log("Day/night label created.");
-            return _dayNightLabel;
+            InterloperHudProMain.Log("Day label created.");
+            return _dayLabel;
+        }
+
+        private static UILabel GetOrCreateTimeLabel()
+        {
+            if (_timeLabel != null)
+                return _timeLabel;
+
+            if (_mainRoot == null)
+                return null!;
+
+            GameObject labelObject = new(TimeLabelName);
+            labelObject.transform.SetParent(_mainRoot.transform.parent, false);
+            labelObject.transform.localScale = Vector3.one;
+
+            _timeLabel = labelObject.AddComponent<UILabel>();
+            ConfigureStandardLabel(_timeLabel, MainFontSize);
+
+            InterloperHudProMain.Log("Time label created.");
+            return _timeLabel;
         }
 
         private static void SetLabelState(UILabel label, bool visible, string text, Color color)
@@ -1102,7 +1154,7 @@ namespace InterloperHudPro
                 HudRenderer.Reset();
                 HudLogic.ResetWeakIceTracking();
                 MainHudPatch.LastUpdateMinutes = 0d;
-                DayNightHudPatch.LastUpdateMinutes = 0d;
+                DayTimeHudPatch.LastUpdateMinutes = 0d;
                 ActiveItemHudPatch.LastUpdateMinutes = 0d;
                 WeakIceHudPatch.LastUpdateMinutes = 0d;
             }
@@ -1170,15 +1222,15 @@ namespace InterloperHudPro
         }
 
         [HarmonyPatch(typeof(Panel_HUD), nameof(Panel_HUD.Update))]
-        private static class DayNightHudPatch
+        private static class DayTimeHudPatch
         {
             internal static double LastUpdateMinutes = 0d;
 
             private static void Postfix()
             {
-                if (!Settings.options.ShowDayNight || !HudLogic.HasMainHudContent())
+                if (!Settings.options.ShowDay && !Settings.options.ShowTime)
                 {
-                    HudRenderer.HideDayNightBlock();
+                    HudRenderer.HideDayTimeBlocks();
                     return;
                 }
 
@@ -1188,13 +1240,20 @@ namespace InterloperHudPro
 
                 if (!HudLogic.TryGetDayNightHudData(out DayNightHudData data))
                 {
-                    HudRenderer.HideDayNightBlock();
+                    HudRenderer.HideDayTimeBlocks();
                     LastUpdateMinutes = now;
                     return;
                 }
 
-                string text = HudLogic.FormatDayNightHudText(data);
-                HudRenderer.RenderDayNightBlock(text);
+                if (Settings.options.ShowDay)
+                    HudRenderer.RenderDayBlock(HudLogic.FormatDayHudText(data));
+                else
+                    HudRenderer.HideDayBlock();
+
+                if (Settings.options.ShowTime)
+                    HudRenderer.RenderTimeBlock(HudLogic.FormatTimeHudText(data));
+                else
+                    HudRenderer.HideTimeBlock();
 
                 LastUpdateMinutes = now;
             }
