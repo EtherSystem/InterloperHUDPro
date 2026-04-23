@@ -41,6 +41,10 @@
         [Description("Displays the current time.")]
         public bool ShowTime = true;
 
+        [Name("Show scene name")]
+        [Description("Displays the name of the currently active scene.")]
+        public bool ShowSceneName = false;
+
         [Name("Show held item condition")]
         [Description("Displays the condition of the item currently held in your hands.")]
         public bool ShowActiveItemCondition = true;
@@ -99,6 +103,25 @@
         [Description("Moves the time display anchor up or down. Default: 95.")]
         [Slider(-100, 1005, 1105)]
         public int TimeHudY = 95;
+
+        [Name("Customize scene HUD")]
+        [Description("Show customization settings for the scene display.")]
+        public bool ShowSceneCustomization = false;
+
+        [Name("Scene HUD X position")]
+        [Description("Moves the scene name display left or right. Default: -20.")]
+        [Slider(-50, 2000, 2050)]
+        public int SceneHudX = 30;
+
+        [Name("Scene HUD Y position")]
+        [Description("Moves the scene name display up or down. Default: 125.")]
+        [Slider(-100, 1005, 1105)]
+        public int SceneHudY = -95;
+
+        [Name("Scene HUD size")]
+        [Description("Controls the size of the scene name text. Default: 20.")]
+        [Slider(14, 48, 34)]
+        public int SceneHudFontSize = 20;
 
         [Name("Customize wind HUD")]
         [Description("Show customization settings for the wind direction and wind speed HUD.")]
@@ -246,6 +269,10 @@
             SetFieldVisible(nameof(DayHudY), ShowDayTimeCustomization && ShowDay);
             SetFieldVisible(nameof(TimeHudX), ShowDayTimeCustomization && ShowTime);
             SetFieldVisible(nameof(TimeHudY), ShowDayTimeCustomization && ShowTime);
+
+            SetFieldVisible(nameof(SceneHudX), ShowSceneCustomization && ShowSceneName);
+            SetFieldVisible(nameof(SceneHudY), ShowSceneCustomization && ShowSceneName);
+            SetFieldVisible(nameof(SceneHudFontSize), ShowSceneCustomization && ShowSceneName);
 
             SetFieldVisible(nameof(IndoorWindSpinSpeed), showWindCustomization && ShowWindHudIndoors && showArrow);
             SetFieldVisible(nameof(IndoorWindSpinDirection), showWindCustomization && ShowWindHudIndoors && showArrow);

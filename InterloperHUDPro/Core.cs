@@ -1,8 +1,9 @@
 ﻿using Il2CppTLD.SaveState;
 using InterloperHudPro;
+using UnityEngine.SceneManagement;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.3.1", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.3.2", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -146,6 +147,18 @@ namespace InterloperHudPro
         private static bool _wasInsideWeakIceTrigger;
         private static float _weakIceEnteredAtRealtime = -1f;
 
+        internal static bool TryGetSceneHudText(out string text)
+        {
+            text = string.Empty;
+
+            Scene activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            if (!activeScene.IsValid() || string.IsNullOrEmpty(activeScene.name))
+                return false;
+
+            text = activeScene.name;
+            return true;
+        }
+
         internal static void ResetWeakIceTracking()
         {
             _cachedIceCrackingManager = null;
@@ -184,7 +197,8 @@ namespace InterloperHudPro
                 || Settings.options.ShowWeight
                 || Settings.options.ShowMovementSpeed
                 || Settings.options.ShowDay
-                || Settings.options.ShowTime;
+                || Settings.options.ShowTime
+                || Settings.options.ShowSceneName;
         }
 
         internal static bool TryGetMovementSpeedHudData(out MovementSpeedHudData data)
@@ -503,6 +517,7 @@ namespace InterloperHudPro
         private const string WindRootName = "InterloperHudPro_WindRoot";
         private const string WindArrowLabelName = "InterloperHudPro_WindArrowLabel";
         private const string WindSpeedLabelName = "InterloperHudPro_WindSpeedLabel";
+        private const string SceneLabelName = "InterloperHudPro_SceneLabel";
         private const string MovementSpeedLabelName = "InterloperHudPro_MovementSpeedLabel";
         private const string WindDirectionGlyph = "↑";
 
@@ -528,6 +543,7 @@ namespace InterloperHudPro
         private static Vector3 WeightPosition => new(Settings.options.WeightX, Settings.options.WeightY, 0f);
         private static Vector3 DayHudPosition => new(Settings.options.DayHudX, Settings.options.DayHudY, 0f);
         private static Vector3 TimeHudPosition => new(Settings.options.TimeHudX, Settings.options.TimeHudY, 0f);
+        private static Vector3 SceneHudPosition => new(Settings.options.SceneHudX, Settings.options.SceneHudY, 0f);
 
         private static readonly Color DefaultTextColor = new(0.9f, 0.95f, 1f, 1f);
         private static readonly Color WarningTextColor = new(0.95f, 0.55f, 0.15f, 1f);
@@ -541,6 +557,7 @@ namespace InterloperHudPro
         private static UILabel? _feelsLikeLabel;
         private static UILabel? _weightLabel;
 
+        private static UILabel? _sceneLabel;
         private static UILabel? _dayLabel;
         private static UILabel? _timeLabel;
         private static UILabel? _activeItemLabel;
@@ -566,6 +583,12 @@ namespace InterloperHudPro
             {
                 UnityEngine.Object.Destroy(_timeLabel.gameObject);
                 _timeLabel = null;
+            }
+
+            if (_sceneLabel != null)
+            {
+                UnityEngine.Object.Destroy(_sceneLabel.gameObject);
+                _sceneLabel = null;
             }
 
             if (_activeItemLabel != null)
@@ -618,6 +641,11 @@ namespace InterloperHudPro
         internal static void HideTimeBlock()
         {
             _timeLabel?.gameObject.SetActive(false);
+        }
+
+        internal static void HideSceneBlock()
+        {
+            _sceneLabel?.gameObject.SetActive(false);
         }
 
         internal static void HideDayTimeBlocks()
@@ -850,6 +878,21 @@ namespace InterloperHudPro
             label.gameObject.SetActive(true);
         }
 
+        internal static void RenderSceneBlock(string text)
+        {
+            UILabel label = GetOrCreateSceneLabel();
+            if (label == null)
+            {
+                HideSceneBlock();
+                return;
+            }
+
+            label.transform.localPosition = SceneHudPosition;
+            label.fontSize = Settings.options.SceneHudFontSize;
+            label.text = text;
+            label.gameObject.SetActive(true);
+        }
+
         internal static void RenderActiveItemBlock(Panel_HUD hud, string text)
         {
             var filledBar = FindActiveItemConditionBar(hud);
@@ -954,6 +997,25 @@ namespace InterloperHudPro
 
             InterloperHudProMain.Log("Time label created.");
             return _timeLabel;
+        }
+
+        private static UILabel GetOrCreateSceneLabel()
+        {
+            if (_sceneLabel != null)
+                return _sceneLabel;
+
+            if (_mainRoot == null)
+                return null!;
+
+            GameObject labelObject = new(SceneLabelName);
+            labelObject.transform.SetParent(_mainRoot.transform.parent, false);
+            labelObject.transform.localScale = Vector3.one;
+
+            _sceneLabel = labelObject.AddComponent<UILabel>();
+            ConfigureStandardLabel(_sceneLabel, SmallFontSize);
+
+            InterloperHudProMain.Log("Scene label created.");
+            return _sceneLabel;
         }
 
         private static void SetLabelState(UILabel label, bool visible, string text, Color color)
@@ -1228,9 +1290,11 @@ namespace InterloperHudPro
 
             private static void Postfix()
             {
-                if (!Settings.options.ShowDay && !Settings.options.ShowTime)
+                if (!Settings.options.ShowDay && !Settings.options.ShowTime && !Settings.options.ShowSceneName)
                 {
-                    HudRenderer.HideDayTimeBlocks();
+                    HudRenderer.HideDayBlock();
+                    HudRenderer.HideTimeBlock();
+                    HudRenderer.HideSceneBlock();
                     return;
                 }
 
@@ -1238,22 +1302,28 @@ namespace InterloperHudPro
                 if (now - LastUpdateMinutes < GeneralHudUpdateIntervalMinutes)
                     return;
 
-                if (!HudLogic.TryGetDayNightHudData(out DayNightHudData data))
+                if (HudLogic.TryGetDayNightHudData(out DayNightHudData dayNightData))
                 {
-                    HudRenderer.HideDayTimeBlocks();
-                    LastUpdateMinutes = now;
-                    return;
+                    if (Settings.options.ShowDay)
+                        HudRenderer.RenderDayBlock(HudLogic.FormatDayHudText(dayNightData));
+                    else
+                        HudRenderer.HideDayBlock();
+
+                    if (Settings.options.ShowTime)
+                        HudRenderer.RenderTimeBlock(HudLogic.FormatTimeHudText(dayNightData));
+                    else
+                        HudRenderer.HideTimeBlock();
+                }
+                else
+                {
+                    HudRenderer.HideDayBlock();
+                    HudRenderer.HideTimeBlock();
                 }
 
-                if (Settings.options.ShowDay)
-                    HudRenderer.RenderDayBlock(HudLogic.FormatDayHudText(data));
+                if (Settings.options.ShowSceneName && HudLogic.TryGetSceneHudText(out string sceneText))
+                    HudRenderer.RenderSceneBlock(sceneText);
                 else
-                    HudRenderer.HideDayBlock();
-
-                if (Settings.options.ShowTime)
-                    HudRenderer.RenderTimeBlock(HudLogic.FormatTimeHudText(data));
-                else
-                    HudRenderer.HideTimeBlock();
+                    HudRenderer.HideSceneBlock();
 
                 LastUpdateMinutes = now;
             }
