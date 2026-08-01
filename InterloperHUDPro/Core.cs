@@ -3,7 +3,7 @@ using InterloperHudPro;
 using UnityEngine.SceneManagement;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.3.2", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.4.0", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -52,6 +52,16 @@ namespace InterloperHudPro
         }
     }
 
+    internal readonly struct BodyHeatHudData
+    {
+        internal readonly float Celsius;
+
+        internal BodyHeatHudData(float celsius)
+        {
+            Celsius = celsius;
+        }
+    }
+
     internal readonly struct WeightHudData
     {
         internal readonly float WeightKg;
@@ -73,6 +83,17 @@ namespace InterloperHudPro
             SpeedMetersPerSecond = speedMetersPerSecond;
         }
     }
+
+    internal readonly struct PlayerCoordinatesHudData
+    {
+        internal readonly Vector3 Position;
+
+        internal PlayerCoordinatesHudData(Vector3 position)
+        {
+            Position = position;
+        }
+    }
+
     internal readonly struct ActiveItemHudData
     {
         internal readonly float ConditionPercent;
@@ -130,6 +151,129 @@ namespace InterloperHudPro
         }
     }
 
+    internal static class MajorMiseriesIntegration
+    {
+        private const string AssemblyName = "MajorMiseries";
+        private const string CoreTypeName = "MajorMiseries.Core";
+        private const string SettingsTypeName = "MajorMiseries.Settings";
+
+        private const BindingFlags StaticFlags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+        private const BindingFlags InstanceFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+        private static bool _resolutionAttempted;
+        private static bool _failureLogged;
+        private static PropertyInfo? _isGameplayEnabledProperty;
+        private static FieldInfo? _stateField;
+        private static FieldInfo? _internalBodyTempField;
+        private static FieldInfo? _settingsOptionsField;
+        private static FieldInfo? _enableBodyHeatField;
+
+        internal static bool IsAvailable()
+        {
+            return ResolveMembers();
+        }
+
+        internal static void Reset()
+        {
+            _resolutionAttempted = false;
+            _failureLogged = false;
+            _isGameplayEnabledProperty = null;
+            _stateField = null;
+            _internalBodyTempField = null;
+            _settingsOptionsField = null;
+            _enableBodyHeatField = null;
+        }
+
+        internal static bool TryGetBodyHeat(out float bodyHeatCelsius)
+        {
+            bodyHeatCelsius = 0f;
+            if (!ResolveMembers()) return false;
+
+            try
+            {
+                if (_isGameplayEnabledProperty?.GetValue(null) is not bool gameplayEnabled || !gameplayEnabled)
+                    return false;
+
+                object? settings = _settingsOptionsField?.GetValue(null);
+                if (settings == null || _enableBodyHeatField?.GetValue(settings) is not bool bodyHeatEnabled || !bodyHeatEnabled)
+                    return false;
+
+                object? state = _stateField?.GetValue(null);
+                if (state == null || _internalBodyTempField?.GetValue(state) is not float bodyHeat)
+                    return false;
+
+                if (float.IsNaN(bodyHeat) || float.IsInfinity(bodyHeat))
+                    return false;
+
+                bodyHeatCelsius = Mathf.Clamp(bodyHeat, 34f, 43f);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogFailureOnce($"MajorMiseries Body Heat integration failed: {ex.GetType().Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static bool ResolveMembers()
+        {
+            if (_resolutionAttempted)
+            {
+                return _isGameplayEnabledProperty != null
+                    && _stateField != null
+                    && _internalBodyTempField != null
+                    && _settingsOptionsField != null
+                    && _enableBodyHeatField != null;
+            }
+
+            _resolutionAttempted = true;
+
+            try
+            {
+                Assembly? assembly = null;
+                foreach (Assembly loadedAssembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    if (!string.Equals(loadedAssembly.GetName().Name, AssemblyName, StringComparison.Ordinal)) continue;
+
+                    assembly = loadedAssembly;
+                    break;
+                }
+
+                if (assembly == null) return false;
+
+                Type? coreType = assembly.GetType(CoreTypeName, false);
+                Type? settingsType = assembly.GetType(SettingsTypeName, false);
+                if (coreType == null || settingsType == null) return false;
+
+                _isGameplayEnabledProperty = coreType.GetProperty("IsGameplayEnabled", StaticFlags);
+                _stateField = coreType.GetField("State", StaticFlags);
+                _settingsOptionsField = settingsType.GetField("options", StaticFlags);
+
+                if (_stateField == null || _settingsOptionsField == null) return false;
+
+                _internalBodyTempField = _stateField.FieldType.GetField("InternalBodyTemp", InstanceFlags);
+                _enableBodyHeatField = _settingsOptionsField.FieldType.GetField("EnableBodyHeat", InstanceFlags);
+
+                return _isGameplayEnabledProperty != null
+                    && _internalBodyTempField != null
+                    && _enableBodyHeatField != null;
+            }
+            catch (Exception ex)
+            {
+                LogFailureOnce($"MajorMiseries Body Heat integration could not initialize: {ex.GetType().Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static void LogFailureOnce(string message)
+        {
+            if (_failureLogged) return;
+
+            _failureLogged = true;
+            InterloperHudProMain.Log(message, false);
+        }
+    }
+
     // -------------------------------------------------------------------------
     //                              HUD LOGIC
     // -------------------------------------------------------------------------
@@ -173,6 +317,11 @@ namespace InterloperHudPro
                 || Settings.options.ShowFeelsLikeTemperature;
         }
 
+        internal static bool HasBodyHeatHudContent()
+        {
+            return Settings.options.ShowBodyHeat && MajorMiseriesIntegration.IsAvailable();
+        }
+
         internal static bool HasWindArrowContent()
         {
             return Settings.options.WindDisplayMode == WindHudDisplayMode.ArrowOnly
@@ -193,9 +342,11 @@ namespace InterloperHudPro
         internal static bool HasMainHudContent()
         {
             return HasTemperatureHudContent()
+                || HasBodyHeatHudContent()
                 || HasWindHudContent()
                 || Settings.options.ShowWeight
                 || Settings.options.ShowMovementSpeed
+                || Settings.options.ShowPlayerCoordinates
                 || Settings.options.ShowDay
                 || Settings.options.ShowTime
                 || Settings.options.ShowSceneName;
@@ -231,6 +382,29 @@ namespace InterloperHudPro
 
             float speedKmh = data.SpeedMetersPerSecond * 3.6f;
             return $"{speedKmh:F1} KM/H";
+        }
+
+        internal static bool TryGetPlayerCoordinatesHudData(out PlayerCoordinatesHudData data)
+        {
+            data = default;
+
+            Transform? playerTransform = GameManager.GetPlayerTransform();
+            if (playerTransform == null) return false;
+
+            Vector3 position = playerTransform.position;
+            if (float.IsNaN(position.x) || float.IsInfinity(position.x)
+                || float.IsNaN(position.y) || float.IsInfinity(position.y)
+                || float.IsNaN(position.z) || float.IsInfinity(position.z)) return false;
+
+            data = new PlayerCoordinatesHudData(position);
+            return true;
+        }
+
+        internal static string FormatPlayerCoordinatesHudText(PlayerCoordinatesHudData data)
+        {
+            return Settings.options.ShowPlayerCoordinateDecimals
+                ? $"{data.Position.x:F2} / {data.Position.y:F2} / {data.Position.z:F2}"
+                : $"{data.Position.x:F0} / {data.Position.y:F0} / {data.Position.z:F0}";
         }
 
         internal static bool TryGetWindDirectionHudData(out WindDirectionHudData data)
@@ -303,6 +477,7 @@ namespace InterloperHudPro
             float windChill = weather.GetCurrentWindchill();
             float clothingWarmthBonus = player.m_WarmthBonusFromClothing;
             float clothingWindproofBonus = player.m_WindproofBonusFromClothing;
+            float activityWarmthBonus = freezing.m_TemperatureBonusFromRunning;
 
             float netWindChill = Mathf.Min(windChill + clothingWindproofBonus, 0f);
 
@@ -310,7 +485,7 @@ namespace InterloperHudPro
                 ? PoorCirculationPenalty
                 : 0f;
 
-            float feelsLikeTemperature = airTemperature + clothingWarmthBonus + netWindChill + poorCirculationModifier;
+            float feelsLikeTemperature = airTemperature + clothingWarmthBonus + netWindChill + activityWarmthBonus + poorCirculationModifier;
             bool useDangerColor = Math.Round(freezing.CalculateBodyTemperature()) < 0;
 
             data = new TemperatureHudData(
@@ -319,6 +494,15 @@ namespace InterloperHudPro
                 feelsLikeTemperature,
                 useDangerColor);
 
+            return true;
+        }
+
+        internal static bool TryGetBodyHeatHudData(out BodyHeatHudData data)
+        {
+            data = default;
+            if (!MajorMiseriesIntegration.TryGetBodyHeat(out float bodyHeatCelsius)) return false;
+
+            data = new BodyHeatHudData(bodyHeatCelsius);
             return true;
         }
 
@@ -414,17 +598,53 @@ namespace InterloperHudPro
 
         internal static string FormatAirTemperatureText(TemperatureHudData data)
         {
-            return $"{data.AirTemperature:F0}°";
+            float temperature = IsUsingImperialUnits()
+                ? CelsiusToFahrenheit(data.AirTemperature)
+                : data.AirTemperature;
+
+            return $"{temperature:F0}°";
         }
 
         internal static string FormatWindChillText(TemperatureHudData data)
         {
-            return $"{data.WindChill:F0}°";
+            float windChill = IsUsingImperialUnits()
+                ? CelsiusDeltaToFahrenheitDelta(data.WindChill)
+                : data.WindChill;
+
+            return $"{windChill:F0}°";
         }
 
         internal static string FormatFeelsLikeText(TemperatureHudData data)
         {
-            return $"{data.FeelsLikeTemperature:F0}°";
+            float temperature = IsUsingImperialUnits()
+                ? CelsiusToFahrenheit(data.FeelsLikeTemperature)
+                : data.FeelsLikeTemperature;
+
+            return $"{temperature:F0}°";
+        }
+
+        internal static string FormatBodyHeatHudText(BodyHeatHudData data)
+        {
+            if (IsUsingImperialUnits())
+                return $"{CelsiusToFahrenheit(data.Celsius):F1}°F";
+
+            return $"{data.Celsius:F1}°C";
+        }
+
+        private static bool IsUsingImperialUnits()
+        {
+            SettingsState settings = SettingsState.Instance;
+            return settings != null && settings.m_Units == MeasurementUnits.Imperial;
+        }
+
+        private static float CelsiusToFahrenheit(float celsius)
+        {
+            return celsius * 1.8f + 32f;
+        }
+
+        private static float CelsiusDeltaToFahrenheitDelta(float celsiusDelta)
+        {
+            return celsiusDelta * 1.8f;
         }
 
         internal static string FormatWeightHudText(WeightHudData data)
@@ -509,6 +729,7 @@ namespace InterloperHudPro
         private const string AirTemperatureLabelName = "InterloperHudPro_AirTemperatureLabel";
         private const string WindChillLabelName = "InterloperHudPro_WindChillLabel";
         private const string FeelsLikeLabelName = "InterloperHudPro_FeelsLikeLabel";
+        private const string BodyHeatLabelName = "InterloperHudPro_BodyHeatLabel";
         private const string WeightLabelName = "InterloperHudPro_WeightLabel";
         private const string DayLabelName = "InterloperHudPro_DayLabel";
         private const string TimeLabelName = "InterloperHudPro_TimeLabel";
@@ -519,6 +740,7 @@ namespace InterloperHudPro
         private const string WindSpeedLabelName = "InterloperHudPro_WindSpeedLabel";
         private const string SceneLabelName = "InterloperHudPro_SceneLabel";
         private const string MovementSpeedLabelName = "InterloperHudPro_MovementSpeedLabel";
+        private const string PlayerCoordinatesLabelName = "InterloperHudPro_PlayerCoordinatesLabel";
         private const string WindDirectionGlyph = "↑";
 
         private static float _indoorWindSpinAngle = 0f;
@@ -527,11 +749,13 @@ namespace InterloperHudPro
         private static Vector3 WindArrowLocalPosition => new(0f, 0f, 0f);
         private static Vector3 WindSpeedLocalPosition => new(0f, -Settings.options.WindSpeedYOffset, 0f);
         private static Vector3 MovementSpeedPosition => new(Settings.options.MovementSpeedX, Settings.options.MovementSpeedY, 0f);
+        private static Vector3 PlayerCoordinatesPosition => new(Settings.options.PlayerCoordinatesX, Settings.options.PlayerCoordinatesY, 0f);
 
         private static GameObject? _windRoot;
         private static UILabel? _windArrowLabel;
         private static UILabel? _windSpeedLabel;
         private static UILabel? _movementSpeedLabel;
+        private static UILabel? _playerCoordinatesLabel;
 
         private const int MainFontSize = 32;
         private const int SmallFontSize = 20;
@@ -540,6 +764,7 @@ namespace InterloperHudPro
         private static Vector3 AirTemperaturePosition => new(Settings.options.AirTemperatureX, 0f, 0f);
         private static Vector3 WindChillPosition => new(Settings.options.WindChillX, 0f, 0f);
         private static Vector3 FeelsLikePosition => new(Settings.options.FeelsLikeX, 0f, 0f);
+        private static Vector3 BodyHeatPosition => new(Settings.options.BodyHeatX, Settings.options.BodyHeatY, 0f);
         private static Vector3 WeightPosition => new(Settings.options.WeightX, Settings.options.WeightY, 0f);
         private static Vector3 DayHudPosition => new(Settings.options.DayHudX, Settings.options.DayHudY, 0f);
         private static Vector3 TimeHudPosition => new(Settings.options.TimeHudX, Settings.options.TimeHudY, 0f);
@@ -555,6 +780,7 @@ namespace InterloperHudPro
         private static UILabel? _airTemperatureLabel;
         private static UILabel? _windChillLabel;
         private static UILabel? _feelsLikeLabel;
+        private static UILabel? _bodyHeatLabel;
         private static UILabel? _weightLabel;
 
         private static UILabel? _sceneLabel;
@@ -615,8 +841,10 @@ namespace InterloperHudPro
             _airTemperatureLabel = null;
             _windChillLabel = null;
             _feelsLikeLabel = null;
+            _bodyHeatLabel = null;
             _weightLabel = null;
             _movementSpeedLabel = null;
+            _playerCoordinatesLabel = null;
 
             InterloperHudProMain.Log("HUD renderer reset.");
         }
@@ -697,8 +925,10 @@ namespace InterloperHudPro
             _airTemperatureLabel = CreateMainChildLabel(AirTemperatureLabelName, AirTemperaturePosition);
             _windChillLabel = CreateMainChildLabel(WindChillLabelName, WindChillPosition);
             _feelsLikeLabel = CreateMainChildLabel(FeelsLikeLabelName, FeelsLikePosition);
+            _bodyHeatLabel = CreateMainChildLabel(BodyHeatLabelName, BodyHeatPosition);
             _weightLabel = CreateMainChildLabel(WeightLabelName, WeightPosition);
             _movementSpeedLabel = CreateMainChildLabel(MovementSpeedLabelName, MovementSpeedPosition);
+            _playerCoordinatesLabel = CreateMainChildLabel(PlayerCoordinatesLabelName, PlayerCoordinatesPosition);
 
             _windRoot = new GameObject(WindRootName);
             _windRoot.transform.SetParent(_mainRoot.transform, false);
@@ -722,15 +952,35 @@ namespace InterloperHudPro
             InterloperHudProMain.Log("Main HUD anchor created.");
         }
 
-        internal static void RenderMainBlock(bool hasTemperatureData, TemperatureHudData temperatureData, bool hasWeightData, WeightHudData weightData, bool hasMovementSpeedData, MovementSpeedHudData movementSpeedData)
+        internal static void RenderMainBlock(
+            bool hasTemperatureData,
+            TemperatureHudData temperatureData,
+            bool hasBodyHeatData,
+            BodyHeatHudData bodyHeatData,
+            bool hasWeightData,
+            WeightHudData weightData,
+            bool hasMovementSpeedData,
+            MovementSpeedHudData movementSpeedData,
+            bool hasPlayerCoordinatesData,
+            PlayerCoordinatesHudData playerCoordinatesData)
         {
             RefreshMainLabelPositions();
 
-            if (_mainRoot == null || _airTemperatureLabel == null || _windChillLabel == null || _feelsLikeLabel == null || _weightLabel == null || _movementSpeedLabel == null)
+            if (_mainRoot == null || _airTemperatureLabel == null || _windChillLabel == null || _feelsLikeLabel == null || _bodyHeatLabel == null || _weightLabel == null || _movementSpeedLabel == null || _playerCoordinatesLabel == null)
                 return;
+
+            _bodyHeatLabel.fontSize = Settings.options.BodyHeatFontSize;
+            _bodyHeatLabel.effectDistance = Settings.options.BodyHeatFontSize >= MainFontSize
+                ? new Vector2(1.7f, 1.7f)
+                : new Vector2(1.5f, 1.5f);
 
             _movementSpeedLabel.fontSize = Settings.options.MovementSpeedFontSize;
             _movementSpeedLabel.effectDistance = Settings.options.MovementSpeedFontSize >= MainFontSize
+                ? new Vector2(1.7f, 1.7f)
+                : new Vector2(1.5f, 1.5f);
+
+            _playerCoordinatesLabel.fontSize = Settings.options.PlayerCoordinatesFontSize;
+            _playerCoordinatesLabel.effectDistance = Settings.options.PlayerCoordinatesFontSize >= MainFontSize
                 ? new Vector2(1.7f, 1.7f)
                 : new Vector2(1.5f, 1.5f);
 
@@ -761,6 +1011,12 @@ namespace InterloperHudPro
                 temperatureColor);
 
             SetLabelState(
+                _bodyHeatLabel,
+                Settings.options.ShowBodyHeat && hasBodyHeatData,
+                hasBodyHeatData ? HudLogic.FormatBodyHeatHudText(bodyHeatData) : string.Empty,
+                DefaultTextColor);
+
+            SetLabelState(
                 _weightLabel,
                 Settings.options.ShowWeight && hasWeightData,
                 hasWeightData ? HudLogic.FormatWeightHudText(weightData) : string.Empty,
@@ -770,6 +1026,12 @@ namespace InterloperHudPro
                 _movementSpeedLabel,
                 Settings.options.ShowMovementSpeed && hasMovementSpeedData,
                 hasMovementSpeedData ? HudLogic.FormatMovementSpeedHudText(movementSpeedData) : string.Empty,
+                DefaultTextColor);
+
+            SetLabelState(
+                _playerCoordinatesLabel,
+                Settings.options.ShowPlayerCoordinates && hasPlayerCoordinatesData,
+                hasPlayerCoordinatesData ? HudLogic.FormatPlayerCoordinatesHudText(playerCoordinatesData) : string.Empty,
                 DefaultTextColor);
 
             RefreshMainRootVisibility();
@@ -1163,6 +1425,9 @@ namespace InterloperHudPro
             if (_feelsLikeLabel != null)
                 _feelsLikeLabel.transform.localPosition = FeelsLikePosition;
 
+            if (_bodyHeatLabel != null)
+                _bodyHeatLabel.transform.localPosition = BodyHeatPosition;
+
             if (_weightLabel != null)
                 _weightLabel.transform.localPosition = WeightPosition;
 
@@ -1174,6 +1439,9 @@ namespace InterloperHudPro
 
             if (_movementSpeedLabel != null)
                 _movementSpeedLabel.transform.localPosition = MovementSpeedPosition;
+
+            if (_playerCoordinatesLabel != null)
+                _playerCoordinatesLabel.transform.localPosition = PlayerCoordinatesPosition;
         }
 
         private static void RefreshMainRootVisibility()
@@ -1185,8 +1453,10 @@ namespace InterloperHudPro
                 (_airTemperatureLabel != null && _airTemperatureLabel.gameObject.activeSelf) ||
                 (_windChillLabel != null && _windChillLabel.gameObject.activeSelf) ||
                 (_feelsLikeLabel != null && _feelsLikeLabel.gameObject.activeSelf) ||
+                (_bodyHeatLabel != null && _bodyHeatLabel.gameObject.activeSelf) ||
                 (_weightLabel != null && _weightLabel.gameObject.activeSelf) ||
                 (_movementSpeedLabel != null && _movementSpeedLabel.gameObject.activeSelf) ||
+                (_playerCoordinatesLabel != null && _playerCoordinatesLabel.gameObject.activeSelf) ||
                 (_windRoot != null && _windRoot.activeSelf);
 
             _mainRoot.SetActive(anyVisible);
@@ -1215,6 +1485,7 @@ namespace InterloperHudPro
             {
                 HudRenderer.Reset();
                 HudLogic.ResetWeakIceTracking();
+                MajorMiseriesIntegration.Reset();
                 MainHudPatch.LastUpdateMinutes = 0d;
                 DayTimeHudPatch.LastUpdateMinutes = 0d;
                 ActiveItemHudPatch.LastUpdateMinutes = 0d;
@@ -1260,24 +1531,34 @@ namespace InterloperHudPro
                     return;
 
                 bool needTemperatureData = HudLogic.HasTemperatureHudContent();
+                bool needBodyHeatData = HudLogic.HasBodyHeatHudContent();
                 bool needWeightData = Settings.options.ShowWeight;
                 bool needMovementSpeedData = Settings.options.ShowMovementSpeed;
+                bool needPlayerCoordinatesData = Settings.options.ShowPlayerCoordinates;
 
                 TemperatureHudData temperatureData = default;
+                BodyHeatHudData bodyHeatData = default;
                 WeightHudData weightData = default;
                 MovementSpeedHudData movementSpeedData = default;
+                PlayerCoordinatesHudData playerCoordinatesData = default;
 
                 bool hasTemperatureData = !needTemperatureData || HudLogic.TryGetTemperatureHudData(out temperatureData);
+                bool hasBodyHeatData = !needBodyHeatData || HudLogic.TryGetBodyHeatHudData(out bodyHeatData);
                 bool hasWeightData = !needWeightData || HudLogic.TryGetWeightHudData(out weightData);
                 bool hasMovementSpeedData = !needMovementSpeedData || HudLogic.TryGetMovementSpeedHudData(out movementSpeedData);
+                bool hasPlayerCoordinatesData = !needPlayerCoordinatesData || HudLogic.TryGetPlayerCoordinatesHudData(out playerCoordinatesData);
 
                 HudRenderer.RenderMainBlock(
                     needTemperatureData && hasTemperatureData,
                     temperatureData,
+                    needBodyHeatData && hasBodyHeatData,
+                    bodyHeatData,
                     needWeightData && hasWeightData,
                     weightData,
                     needMovementSpeedData && hasMovementSpeedData,
-                    movementSpeedData);
+                    movementSpeedData,
+                    needPlayerCoordinatesData && hasPlayerCoordinatesData,
+                    playerCoordinatesData);
 
                 LastUpdateMinutes = now;
             }

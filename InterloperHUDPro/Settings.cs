@@ -33,6 +33,14 @@
         [Description("Displays your current horizontal movement speed.")]
         public bool ShowMovementSpeed = true;
 
+        [Name("Show player coordinates")]
+        [Description("Displays your current world-space X, Y and Z coordinates.")]
+        public bool ShowPlayerCoordinates = false;
+
+        [Name("Show coordinate decimals")]
+        [Description("Displays coordinates with two decimal places instead of rounded whole numbers.")]
+        public bool ShowPlayerCoordinateDecimals = true;
+
         [Name("Show day")]
         [Description("Displays the current day.")]
         public bool ShowDay = true;
@@ -57,6 +65,11 @@
         [Description("Displays the remaining time before thin ice breaks under your feet.")]
         public bool ShowThinIceTime = true;
 
+        [Section("External mods")]
+
+        [Name("Show MajorMiseries body heat")]
+        [Description("Displays the internal Body Heat tracked by MajorMiseries when its Body Heat system is enabled.")]
+        public bool ShowBodyHeat = false;
 
 
         [Section("HUD Customization")]
@@ -79,6 +92,25 @@
         [Description("Moves the feels like temperature display left or right. Default: 120.")]
         [Slider(0, 250, 250)]
         public int FeelsLikeX = 120;
+
+        [Name("Customize player coordinates HUD")]
+        [Description("Show customization settings for the player coordinates display.")]
+        public bool ShowPlayerCoordinatesCustomization = false;
+
+        [Name("Player coordinates HUD X position")]
+        [Description("Moves the player coordinates display left or right. Default: 140.")]
+        [Slider(-50, 2000, 2050)]
+        public int PlayerCoordinatesX = 140;
+
+        [Name("Player coordinates HUD Y position")]
+        [Description("Moves the player coordinates display up or down. Default: -97.")]
+        [Slider(-200, 1005, 1205)]
+        public int PlayerCoordinatesY = -97;
+
+        [Name("Player coordinates HUD size")]
+        [Description("Controls the size of the player coordinates text. Default: 20.")]
+        [Slider(14, 48, 34)]
+        public int PlayerCoordinatesFontSize = 20;
 
         [Name("Customize day/time HUD")]
         [Description("Show customization settings for the day and time displays.")]
@@ -218,6 +250,27 @@
         [Slider(120, 300, 180)]
         public int ThinIceTimerYOffset = 210;
 
+        [Section("External mods HUD Customization")]
+
+        [Name("Customize body heat HUD")]
+        [Description("Show customization settings for the MajorM Body Heat display.")]
+        public bool ShowBodyHeatCustomization = false;
+
+        [Name("Body heat HUD X position")]
+        [Description("Moves the Body Heat display left or right. Default: 50.")]
+        [Slider(-50, 2000, 2050)]
+        public int BodyHeatX = 50;
+
+        [Name("Body heat HUD Y position")]
+        [Description("Moves the Body Heat display up or down. Default: -97.")]
+        [Slider(-150, 1005, 1155)]
+        public int BodyHeatY = -97;
+
+        [Name("Body heat HUD size")]
+        [Description("Controls the size of the Body Heat text. Default: 22.")]
+        [Slider(14, 48, 34)]
+        public int BodyHeatFontSize = 22;
+
         [Section("Advanced")]
 
         [Name("Show advanced options")]
@@ -260,6 +313,15 @@
             SetFieldVisible(nameof(AirTemperatureX), showTemperatureCustomization && ShowAirTemperature);
             SetFieldVisible(nameof(WindChillX), showTemperatureCustomization && ShowWindChill);
             SetFieldVisible(nameof(FeelsLikeX), showTemperatureCustomization && ShowFeelsLikeTemperature);
+
+            SetFieldVisible(nameof(BodyHeatX), ShowBodyHeatCustomization && ShowBodyHeat);
+            SetFieldVisible(nameof(BodyHeatY), ShowBodyHeatCustomization && ShowBodyHeat);
+            SetFieldVisible(nameof(BodyHeatFontSize), ShowBodyHeatCustomization && ShowBodyHeat);
+
+            SetFieldVisible(nameof(ShowPlayerCoordinateDecimals), ShowPlayerCoordinates);
+            SetFieldVisible(nameof(PlayerCoordinatesX), ShowPlayerCoordinatesCustomization && ShowPlayerCoordinates);
+            SetFieldVisible(nameof(PlayerCoordinatesY), ShowPlayerCoordinatesCustomization && ShowPlayerCoordinates);
+            SetFieldVisible(nameof(PlayerCoordinatesFontSize), ShowPlayerCoordinatesCustomization && ShowPlayerCoordinates);
 
             bool showWindCustomization = ShowWindCustomization && WindDisplayMode != WindHudDisplayMode.None;
             bool showArrow = WindDisplayMode == WindHudDisplayMode.ArrowOnly || WindDisplayMode == WindHudDisplayMode.ArrowAndSpeed;
