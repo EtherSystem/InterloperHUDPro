@@ -22,8 +22,12 @@
         public WindHudDisplayMode WindDisplayMode = WindHudDisplayMode.ArrowAndSpeed;
 
         [Name("Show wind HUD indoors")]
-        [Description("Keeps the selected wind HUD elements visible indoors. When the arrow is enabled indoors, it spins instead of showing a real direction.")]
+        [Description("Keeps the selected wind HUD elements visible indoors.")]
         public bool ShowWindHudIndoors = true;
+
+        [Name("Show wind direction indoors")]
+        [Description("Shows the wind direction arrow indoors. Disable this to hide the spinning arrow indoors while keeping wind speed visible when enabled.")]
+        public bool ShowWindDirectionIndoors = true;
 
         [Name("Show carried weight")]
         [Description("Displays your current carried weight.")]
@@ -336,8 +340,9 @@
             SetFieldVisible(nameof(SceneHudY), ShowSceneCustomization && ShowSceneName);
             SetFieldVisible(nameof(SceneHudFontSize), ShowSceneCustomization && ShowSceneName);
 
-            SetFieldVisible(nameof(IndoorWindSpinSpeed), showWindCustomization && ShowWindHudIndoors && showArrow);
-            SetFieldVisible(nameof(IndoorWindSpinDirection), showWindCustomization && ShowWindHudIndoors && showArrow);
+            SetFieldVisible(nameof(ShowWindDirectionIndoors), ShowWindHudIndoors && showArrow);
+            SetFieldVisible(nameof(IndoorWindSpinSpeed), showWindCustomization && ShowWindHudIndoors && ShowWindDirectionIndoors && showArrow);
+            SetFieldVisible(nameof(IndoorWindSpinDirection), showWindCustomization && ShowWindHudIndoors && ShowWindDirectionIndoors && showArrow);
             SetFieldVisible(nameof(WindDirectionX), showWindCustomization);
             SetFieldVisible(nameof(WindDirectionY), showWindCustomization);
             SetFieldVisible(nameof(WindArrowFontSize), showWindCustomization && showArrow);

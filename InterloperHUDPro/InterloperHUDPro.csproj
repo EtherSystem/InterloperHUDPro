@@ -6,8 +6,8 @@
 		<RootNamespace>InterloperHudPro</RootNamespace>
 		<LangVersion>Latest</LangVersion>
 		<IsPackable>false</IsPackable>
-		<AssemblyVersion>1.3.5.0</AssemblyVersion>
-		<FileVersion>1.3.5.0</FileVersion>
+		<AssemblyVersion>1.4.1.0</AssemblyVersion>
+		<FileVersion>1.4.1.0</FileVersion>
 		<NeutralLanguage>en-US</NeutralLanguage>
 		<AssemblyName>InterloperHudPro</AssemblyName>
 		<Platforms>AnyCPU;x64;x64</Platforms>

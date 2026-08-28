@@ -3,7 +3,7 @@ using InterloperHudPro;
 using UnityEngine.SceneManagement;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.4.0", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.4.1", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -279,7 +279,6 @@ namespace InterloperHudPro
     // -------------------------------------------------------------------------
     internal static class HudLogic
     {
-        private const float PoorCirculationPenalty = -5f;
         private const float WeightUnitsToKilograms = 1e9f;
         private const float BaseWeakIceTimeSeconds = 5f;
 
@@ -466,27 +465,15 @@ namespace InterloperHudPro
             data = default;
 
             var weather = GameManager.GetWeatherComponent();
-            var player = GameManager.GetPlayerManagerComponent();
-            var condition = GameManager.GetConditionComponent();
             var freezing = GameManager.GetFreezingComponent();
 
-            if (weather == null || player == null || condition == null || freezing == null)
+            if (weather == null || freezing == null)
                 return false;
 
             float airTemperature = weather.GetCurrentTemperature();
             float windChill = weather.GetCurrentWindchill();
-            float clothingWarmthBonus = player.m_WarmthBonusFromClothing;
-            float clothingWindproofBonus = player.m_WindproofBonusFromClothing;
-            float activityWarmthBonus = freezing.m_TemperatureBonusFromRunning;
-
-            float netWindChill = Mathf.Min(windChill + clothingWindproofBonus, 0f);
-
-            float poorCirculationModifier = condition.HasSpecificAffliction(AfflictionType.PoorCirculation)
-                ? PoorCirculationPenalty
-                : 0f;
-
-            float feelsLikeTemperature = airTemperature + clothingWarmthBonus + netWindChill + activityWarmthBonus + poorCirculationModifier;
-            bool useDangerColor = Math.Round(freezing.CalculateBodyTemperature()) < 0;
+            float feelsLikeTemperature = freezing.CalculateBodyTemperature();
+            bool useDangerColor = Math.Round(feelsLikeTemperature) < 0;
 
             data = new TemperatureHudData(
                 airTemperature,
@@ -1057,7 +1044,8 @@ namespace InterloperHudPro
                 return;
             }
 
-            bool showArrow = HudLogic.HasWindArrowContent();
+            bool showArrow = HudLogic.HasWindArrowContent()
+                && (data.IsOutdoors || Settings.options.ShowWindDirectionIndoors);
             bool showSpeed = HudLogic.HasWindSpeedContent();
 
             _windRoot.SetActive(showArrow || showSpeed);
