@@ -75,6 +75,10 @@
         [Description("Displays the internal Body Heat tracked by MajorMiseries when its Body Heat system is enabled.")]
         public bool ShowBodyHeat = false;
 
+        [Name("Show WeatherOverhaul weather stage")]
+        [Description("Displays the current WeatherOverhaul weather stage when WeatherOverhaul is installed.")]
+        public bool ShowWeatherOverhaulStage = false;
+
 
         [Section("HUD Customization")]
 
@@ -275,6 +279,25 @@
         [Slider(14, 48, 34)]
         public int BodyHeatFontSize = 22;
 
+        [Name("Customize WeatherOverhaul stage HUD")]
+        [Description("Show customization settings for the WeatherOverhaul weather stage display.")]
+        public bool ShowWeatherOverhaulStageCustomization = false;
+
+        [Name("WeatherOverhaul stage HUD X position")]
+        [Description("Moves the WeatherOverhaul weather stage display left or right. Default: 10.")]
+        [Slider(-50, 2000, 2050)]
+        public int WeatherOverhaulStageX = 10;
+
+        [Name("WeatherOverhaul stage HUD Y position")]
+        [Description("Moves the WeatherOverhaul weather stage display up or down. Default: -92.")]
+        [Slider(-200, 1005, 1205)]
+        public int WeatherOverhaulStageY = -92;
+
+        [Name("WeatherOverhaul stage HUD size")]
+        [Description("Controls the size of the WeatherOverhaul weather stage text. Default: 25.")]
+        [Slider(14, 48, 34)]
+        public int WeatherOverhaulStageFontSize = 25;
+
         [Section("Advanced")]
 
         [Name("Show advanced options")]
@@ -321,6 +344,9 @@
             SetFieldVisible(nameof(BodyHeatX), ShowBodyHeatCustomization && ShowBodyHeat);
             SetFieldVisible(nameof(BodyHeatY), ShowBodyHeatCustomization && ShowBodyHeat);
             SetFieldVisible(nameof(BodyHeatFontSize), ShowBodyHeatCustomization && ShowBodyHeat);
+            SetFieldVisible(nameof(WeatherOverhaulStageX), ShowWeatherOverhaulStageCustomization && ShowWeatherOverhaulStage);
+            SetFieldVisible(nameof(WeatherOverhaulStageY), ShowWeatherOverhaulStageCustomization && ShowWeatherOverhaulStage);
+            SetFieldVisible(nameof(WeatherOverhaulStageFontSize), ShowWeatherOverhaulStageCustomization && ShowWeatherOverhaulStage);
 
             SetFieldVisible(nameof(ShowPlayerCoordinateDecimals), ShowPlayerCoordinates);
             SetFieldVisible(nameof(PlayerCoordinatesX), ShowPlayerCoordinatesCustomization && ShowPlayerCoordinates);

@@ -3,7 +3,7 @@ using InterloperHudPro;
 using UnityEngine.SceneManagement;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.4.1", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.4.2", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -274,6 +274,80 @@ namespace InterloperHudPro
         }
     }
 
+    internal static class WeatherOverhaulIntegration
+    {
+        private const string AssemblyName = "WeatherOverhaul";
+        private const string ApiTypeName = "WeatherOverhaul.WeatherOverhaulApi";
+        private const string ApiMethodName = "TryGetCurrentStageDisplayName";
+
+        private delegate bool TryGetCurrentStageDisplayNameDelegate(out string displayName);
+
+        private static bool _resolutionAttempted;
+        private static bool _failureLogged;
+        private static TryGetCurrentStageDisplayNameDelegate? _tryGetCurrentStageDisplayName;
+
+        internal static void Reset()
+        {
+            _resolutionAttempted = false;
+            _failureLogged = false;
+            _tryGetCurrentStageDisplayName = null;
+        }
+
+        internal static bool TryGetCurrentStageDisplayName(out string displayName)
+        {
+            displayName = string.Empty;
+            if (!ResolveApi() || _tryGetCurrentStageDisplayName == null) return false;
+
+            try
+            {
+                return _tryGetCurrentStageDisplayName(out displayName) && !string.IsNullOrWhiteSpace(displayName);
+            }
+            catch (Exception ex)
+            {
+                LogFailureOnce($"WeatherOverhaul integration failed: {ex.GetType().Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static bool ResolveApi()
+        {
+            if (_resolutionAttempted) return _tryGetCurrentStageDisplayName != null;
+            _resolutionAttempted = true;
+
+            try
+            {
+                Assembly? assembly = null;
+                foreach (Assembly loadedAssembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    if (!string.Equals(loadedAssembly.GetName().Name, AssemblyName, StringComparison.Ordinal)) continue;
+                    assembly = loadedAssembly;
+                    break;
+                }
+
+                if (assembly == null) return false;
+
+                Type? apiType = assembly.GetType(ApiTypeName, false);
+                MethodInfo? apiMethod = apiType?.GetMethod(ApiMethodName, BindingFlags.Static | BindingFlags.Public);
+                if (apiMethod == null) return false;
+
+                _tryGetCurrentStageDisplayName = (TryGetCurrentStageDisplayNameDelegate)apiMethod.CreateDelegate(typeof(TryGetCurrentStageDisplayNameDelegate));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogFailureOnce($"WeatherOverhaul integration could not initialize: {ex.GetType().Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static void LogFailureOnce(string message)
+        {
+            if (_failureLogged) return;
+            _failureLogged = true;
+            InterloperHudProMain.Log(message, false);
+        }
+    }
+
     // -------------------------------------------------------------------------
     //                              HUD LOGIC
     // -------------------------------------------------------------------------
@@ -348,7 +422,8 @@ namespace InterloperHudPro
                 || Settings.options.ShowPlayerCoordinates
                 || Settings.options.ShowDay
                 || Settings.options.ShowTime
-                || Settings.options.ShowSceneName;
+                || Settings.options.ShowSceneName
+                || Settings.options.ShowWeatherOverhaulStage;
         }
 
         internal static bool TryGetMovementSpeedHudData(out MovementSpeedHudData data)
@@ -726,6 +801,7 @@ namespace InterloperHudPro
         private const string WindArrowLabelName = "InterloperHudPro_WindArrowLabel";
         private const string WindSpeedLabelName = "InterloperHudPro_WindSpeedLabel";
         private const string SceneLabelName = "InterloperHudPro_SceneLabel";
+        private const string WeatherOverhaulStageLabelName = "InterloperHudPro_WeatherOverhaulStageLabel";
         private const string MovementSpeedLabelName = "InterloperHudPro_MovementSpeedLabel";
         private const string PlayerCoordinatesLabelName = "InterloperHudPro_PlayerCoordinatesLabel";
         private const string WindDirectionGlyph = "↑";
@@ -756,6 +832,7 @@ namespace InterloperHudPro
         private static Vector3 DayHudPosition => new(Settings.options.DayHudX, Settings.options.DayHudY, 0f);
         private static Vector3 TimeHudPosition => new(Settings.options.TimeHudX, Settings.options.TimeHudY, 0f);
         private static Vector3 SceneHudPosition => new(Settings.options.SceneHudX, Settings.options.SceneHudY, 0f);
+        private static Vector3 WeatherOverhaulStageHudPosition => new(Settings.options.WeatherOverhaulStageX, Settings.options.WeatherOverhaulStageY, 0f);
 
         private static readonly Color DefaultTextColor = new(0.9f, 0.95f, 1f, 1f);
         private static readonly Color WarningTextColor = new(0.95f, 0.55f, 0.15f, 1f);
@@ -771,6 +848,7 @@ namespace InterloperHudPro
         private static UILabel? _weightLabel;
 
         private static UILabel? _sceneLabel;
+        private static UILabel? _weatherOverhaulStageLabel;
         private static UILabel? _dayLabel;
         private static UILabel? _timeLabel;
         private static UILabel? _activeItemLabel;
@@ -802,6 +880,12 @@ namespace InterloperHudPro
             {
                 UnityEngine.Object.Destroy(_sceneLabel.gameObject);
                 _sceneLabel = null;
+            }
+
+            if (_weatherOverhaulStageLabel != null)
+            {
+                UnityEngine.Object.Destroy(_weatherOverhaulStageLabel.gameObject);
+                _weatherOverhaulStageLabel = null;
             }
 
             if (_activeItemLabel != null)
@@ -861,6 +945,11 @@ namespace InterloperHudPro
         internal static void HideSceneBlock()
         {
             _sceneLabel?.gameObject.SetActive(false);
+        }
+
+        internal static void HideWeatherOverhaulStageBlock()
+        {
+            _weatherOverhaulStageLabel?.gameObject.SetActive(false);
         }
 
         internal static void HideDayTimeBlocks()
@@ -1143,6 +1232,21 @@ namespace InterloperHudPro
             label.gameObject.SetActive(true);
         }
 
+        internal static void RenderWeatherOverhaulStageBlock(string text)
+        {
+            UILabel label = GetOrCreateWeatherOverhaulStageLabel();
+            if (label == null)
+            {
+                HideWeatherOverhaulStageBlock();
+                return;
+            }
+
+            label.transform.localPosition = WeatherOverhaulStageHudPosition;
+            label.fontSize = Settings.options.WeatherOverhaulStageFontSize;
+            label.text = text;
+            label.gameObject.SetActive(true);
+        }
+
         internal static void RenderActiveItemBlock(Panel_HUD hud, string text)
         {
             var filledBar = FindActiveItemConditionBar(hud);
@@ -1266,6 +1370,25 @@ namespace InterloperHudPro
 
             InterloperHudProMain.Log("Scene label created.");
             return _sceneLabel;
+        }
+
+        private static UILabel GetOrCreateWeatherOverhaulStageLabel()
+        {
+            if (_weatherOverhaulStageLabel != null)
+                return _weatherOverhaulStageLabel;
+
+            if (_mainRoot == null)
+                return null!;
+
+            GameObject labelObject = new(WeatherOverhaulStageLabelName);
+            labelObject.transform.SetParent(_mainRoot.transform.parent, false);
+            labelObject.transform.localScale = Vector3.one;
+
+            _weatherOverhaulStageLabel = labelObject.AddComponent<UILabel>();
+            ConfigureStandardLabel(_weatherOverhaulStageLabel, SmallFontSize);
+
+            InterloperHudProMain.Log("WeatherOverhaul stage label created.");
+            return _weatherOverhaulStageLabel;
         }
 
         private static void SetLabelState(UILabel label, bool visible, string text, Color color)
@@ -1474,6 +1597,7 @@ namespace InterloperHudPro
                 HudRenderer.Reset();
                 HudLogic.ResetWeakIceTracking();
                 MajorMiseriesIntegration.Reset();
+                WeatherOverhaulIntegration.Reset();
                 MainHudPatch.LastUpdateMinutes = 0d;
                 DayTimeHudPatch.LastUpdateMinutes = 0d;
                 ActiveItemHudPatch.LastUpdateMinutes = 0d;
@@ -1559,11 +1683,12 @@ namespace InterloperHudPro
 
             private static void Postfix()
             {
-                if (!Settings.options.ShowDay && !Settings.options.ShowTime && !Settings.options.ShowSceneName)
+                if (!Settings.options.ShowDay && !Settings.options.ShowTime && !Settings.options.ShowSceneName && !Settings.options.ShowWeatherOverhaulStage)
                 {
                     HudRenderer.HideDayBlock();
                     HudRenderer.HideTimeBlock();
                     HudRenderer.HideSceneBlock();
+                    HudRenderer.HideWeatherOverhaulStageBlock();
                     return;
                 }
 
@@ -1593,6 +1718,11 @@ namespace InterloperHudPro
                     HudRenderer.RenderSceneBlock(sceneText);
                 else
                     HudRenderer.HideSceneBlock();
+
+                if (Settings.options.ShowWeatherOverhaulStage && WeatherOverhaulIntegration.TryGetCurrentStageDisplayName(out string weatherOverhaulStageText))
+                    HudRenderer.RenderWeatherOverhaulStageBlock(weatherOverhaulStageText);
+                else
+                    HudRenderer.HideWeatherOverhaulStageBlock();
 
                 LastUpdateMinutes = now;
             }
