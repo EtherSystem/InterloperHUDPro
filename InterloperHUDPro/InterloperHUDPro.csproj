@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
@@ -23,12 +23,30 @@
 	<ItemGroup>
 		<Reference Include="ModSettings">
 			<HintPath>$(TheLongDarkPath)\Mods\ModSettings.dll</HintPath>
+			<Private>false</Private>
 		</Reference>
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="STBlade.Modding.TLD.Il2CppAssemblies.Windows" Version="2.51.0" />
-		<PackageReference Include="STBlade.Modding.TLD.ModSettings" Version="1.9.0" />
+		<Reference Include="MelonLoader">
+			<HintPath>$(TheLongDarkPath)\MelonLoader\net6\MelonLoader.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="0Harmony">
+			<HintPath>$(TheLongDarkPath)\MelonLoader\net6\0Harmony.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="Il2CppInterop.Runtime">
+			<HintPath>$(TheLongDarkPath)\MelonLoader\net6\Il2CppInterop.Runtime.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="Il2CppInterop.Common">
+			<HintPath>$(TheLongDarkPath)\MelonLoader\net6\Il2CppInterop.Common.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="$(TheLongDarkPath)\MelonLoader\Il2CppAssemblies\*.dll">
+			<Private>false</Private>
+		</Reference>
 	</ItemGroup>
 
 	<ItemGroup>

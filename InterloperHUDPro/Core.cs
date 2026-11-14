@@ -3,7 +3,7 @@ using InterloperHudPro;
 using UnityEngine.SceneManagement;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.4.2", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.4.3", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -1578,6 +1578,125 @@ namespace InterloperHudPro
     // -------------------------------------------------------------------------
     //                               PATCHES
     // -------------------------------------------------------------------------
+    internal static class FirstAidVitaminC
+    {
+        private const string WidgetName = "InterloperHudPro_VitaminC";
+        private static Vector3 WidgetOffset => new(Settings.options.FirstAidVitaminCX * 0.01f, Settings.options.FirstAidVitaminCY * 0.01f, 0f);
+        private static float _nextRefreshTime;
+
+        private static void Refresh(Panel_FirstAid panel)
+        {
+            if (panel == null || panel.gameObject == null)
+                return;
+
+            Transform panelRoot = panel.transform;
+            if (panelRoot.childCount <= 2)
+                return;
+
+            Transform statusBars = panelRoot.GetChild(2);
+            if (statusBars.childCount <= 12)
+                return;
+
+            Transform calories = statusBars.GetChild(12);
+            if (calories.childCount <= 3)
+                return;
+
+            GameObject? widget = calories.parent.Find(WidgetName)?.gameObject;
+            if (!Settings.options.ShowVitaminCFirstAid)
+            {
+                if (widget != null)
+                    widget.SetActive(false);
+
+                return;
+            }
+
+            var scurvy = GameManager.GetScurvyComponent();
+            var nutrition = Il2CppTLD.Player.Nutrition.Instance;
+
+            if (scurvy == null || nutrition == null || !nutrition.IsInitialized)
+                return;
+
+            if (!scurvy.TryGetVitaminCDefinition(out Il2CppTLD.Gameplay.NutrientDefinition nutrient) || nutrient == null)
+                return;
+
+            float amount = nutrition.GetValue(nutrient);
+            float maximum = nutrition.GetMaxValue(nutrient);
+
+            if (float.IsNaN(amount) || float.IsInfinity(amount) ||
+                float.IsNaN(maximum) || float.IsInfinity(maximum) || maximum <= 0f)
+                return;
+
+            if (widget == null)
+            {
+                widget = UnityEngine.Object.Instantiate(calories.gameObject, calories.parent);
+                widget.name = WidgetName;
+                widget.transform.GetChild(0).gameObject.SetActive(false);
+
+                UILabel label = widget.transform.GetChild(1).GetComponent<UILabel>();
+                UILocalize? localize = label.GetComponent<UILocalize>();
+                if (localize != null)
+                    localize.enabled = false;
+
+                label.text = "VITAMIN C";
+
+                if (statusBars.Find("Blood Drug Level") == null)
+                {
+                    Transform background = widget.transform.GetChild(3);
+                    Vector3 scale = background.localScale;
+                    scale.x -= 0.2f;
+                    background.localScale = scale;
+                }
+            }
+
+            widget.transform.position = calories.position + WidgetOffset;
+
+            UILabel value = widget.transform.GetChild(2).GetComponent<UILabel>();
+            value.text = amount.ToString("0.#");
+
+            float normalized = Mathf.Clamp01(amount / maximum);
+            value.color = normalized < 0.2f
+                ? new Color(0.8f, 0.2f, 0.23f, 1f)
+                : normalized < 0.4f
+                    ? new Color(0.95f, 0.55f, 0.15f, 1f)
+                    : Color.white;
+
+            widget.SetActive(true);
+        }
+
+        [HarmonyPatch(typeof(Panel_FirstAid), nameof(Panel_FirstAid.Initialize))]
+        private static class InitializePatch
+        {
+            [HarmonyPriority(Priority.Last)]
+            private static void Postfix(Panel_FirstAid __instance)
+            {
+                Refresh(__instance);
+            }
+        }
+
+        [HarmonyPatch(typeof(Panel_FirstAid), nameof(Panel_FirstAid.RefreshStatusLabels))]
+        private static class RefreshStatusLabelsPatch
+        {
+            [HarmonyPriority(Priority.Last)]
+            private static void Postfix(Panel_FirstAid __instance)
+            {
+                Refresh(__instance);
+            }
+        }
+
+        [HarmonyPatch(typeof(Panel_FirstAid), "Update")]
+        private static class UpdatePatch
+        {
+            private static void Postfix(Panel_FirstAid __instance)
+            {
+                if (!__instance.IsEnabled() || Time.unscaledTime < _nextRefreshTime)
+                    return;
+
+                _nextRefreshTime = Time.unscaledTime + 0.5f;
+                Refresh(__instance);
+            }
+        }
+    }
+
     internal static class Patches
     {
         private const double TemperatureUpdateIntervalMinutes = 0.01d;

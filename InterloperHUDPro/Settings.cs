@@ -69,6 +69,10 @@
         [Description("Displays the remaining time before thin ice breaks under your feet.")]
         public bool ShowThinIceTime = true;
 
+        [Name("Show Vitamin C in First Aid")]
+        [Description("Displays the player's current Vitamin C amount in the First Aid panel.")]
+        public bool ShowVitaminCFirstAid = true;
+
         [Section("External mods")]
 
         [Name("Show MajorMiseries body heat")]
@@ -258,6 +262,20 @@
         [Slider(120, 300, 180)]
         public int ThinIceTimerYOffset = 210;
 
+        [Name("Customize First Aid Vitamin C widget")]
+        [Description("Show position settings for the Vitamin C widget in the First Aid panel.")]
+        public bool ShowFirstAidVitaminCCustomization = false;
+
+        [Name("First Aid Vitamin C X position")]
+        [Description("Moves the Vitamin C widget left or right relative to the calorie widget. Default: 35.")]
+        [Slider(-500, 500, 1000)]
+        public int FirstAidVitaminCX = 35;
+
+        [Name("First Aid Vitamin C Y position")]
+        [Description("Moves the Vitamin C widget up or down relative to the calorie widget. Default: 98.")]
+        [Slider(-500, 500, 1000)]
+        public int FirstAidVitaminCY = 98;
+
         [Section("External mods HUD Customization")]
 
         [Name("Customize body heat HUD")]
@@ -383,6 +401,8 @@
             SetFieldVisible(nameof(ActiveItemConditionX), ShowHeldItemCustomization && ShowActiveItemCondition);
             SetFieldVisible(nameof(ThinIceTimerFontSize), ShowThinIceCustomization && ShowThinIceTime);
             SetFieldVisible(nameof(ThinIceTimerYOffset), ShowThinIceCustomization && ShowThinIceTime);
+            SetFieldVisible(nameof(FirstAidVitaminCX), ShowFirstAidVitaminCCustomization && ShowVitaminCFirstAid);
+            SetFieldVisible(nameof(FirstAidVitaminCY), ShowFirstAidVitaminCCustomization && ShowVitaminCFirstAid);
 
             SetFieldVisible(nameof(IsLogging), ShowAdvanced);
 
