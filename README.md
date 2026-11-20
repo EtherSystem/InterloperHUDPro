@@ -31,7 +31,7 @@ Stay informed. Stay alive.
 | 🌬️ **Automatic Wind Speed Units** | Wind speed is displayed in `KM/H` or `MPH` depending on the game's measurement unit setting |
 | 🏃 **Automatic Movement Speed Units** | Movement speed is displayed in `KM/H` or `MPH` depending on the game's measurement unit setting |
 | 🎛️ **HUD Customization** | Includes optional per-category customization settings to reposition HUD elements and adjust element sizes where supported |
-| 🌐 **Localized Day Label** | The day label adapts to the current game language |
+| 🖱️ **Visual Layout Editor** | Move every display with the mouse directly in game, including displays that are currently disabled |
 
 ## ⚙️ Configuration
 
@@ -57,9 +57,10 @@ Each HUD category has its own **Customize ... HUD** toggle. Enabling one reveals
 
 | Option | Description |
 |----------|--------------|
-| **Air temperature position** | Moves the air temperature display left or right |
-| **Wind chill position** | Moves the wind chill display left or right |
-| **Feels like temperature position** | Moves the feels like temperature display left or right |
+| **Visual layout editor key** | Key that opens the visual layout editor in game (default `F8`) |
+| **Air temperature X / Y position** | Moves the air temperature display left/right and up/down |
+| **Wind chill X / Y position** | Moves the wind chill display left/right and up/down |
+| **Feels like temperature X / Y position** | Moves the feels like temperature display left/right and up/down |
 | **Wind HUD X position** | Moves the wind tracker left or right |
 | **Wind HUD Y position** | Moves the wind tracker up or down |
 | **Wind arrow size** | Adjusts the size of the wind direction arrow |
@@ -72,6 +73,34 @@ Each HUD category has its own **Customize ... HUD** toggle. Enabling one reveals
 | **Held item condition position** | Moves the held item condition display left or right |
 | **Thin ice timer size** | Adjusts the font size of the thin ice timer |
 | **Thin ice timer vertical offset** | Moves the thin ice timer farther below the warning panel |
+
+### 🖱️ Visual Layout Editor
+Press the **Visual layout editor key** (default `F8`, set in ModSettings → *HUD Customization*) while playing to open the editor.
+
+* Every display is shown while the editor is open, even the ones that are disabled, so they can all be placed
+* Only positions are edited: sizes, colors and visibility settings cant be edited in this editor
+* Every display can be placed anywhere on screen, except the held item condition and the thin ice timer which stay attached to their vanilla widgets
+* Positions are saved into the same settings as the ModSettings sliders and stay within their ranges, so both ways of editing stay in sync
+* Open the editor while the **First Aid** panel is open to move the **Vitamin C** widget  
+
+| Control | Action |
+|----------|--------------|
+| **Mouse drag** | Moves the display under the cursor |
+| **Arrow keys** | Nudges the selected display by 1 (hold `Shift` for 10) |
+| **Tab** | Selects the next display |
+| **R** | Resets the selected display to its default position |
+| **Shift + R** | Resets every display to its default position |
+| **Enter** / editor key | Saves and closes the editor |
+| **Backspace** | Cancels every change made since the editor was opened and closes it |
+
+Editable displays are highlighted in blue, the display under the cursor in light yellow and the selected display in orange, with its name shown above it.
+
+| Note | Description |
+|----------|--------------|
+| **Single-axis displays** | Wind speed (distance below the arrow, it follows the wind tracker wherever it is placed) and the thin ice timer move vertically only, the held item condition moves horizontally only |
+| **Held item condition** | Can only be moved while an item is held, since it lives in the equipped item popup |
+| **Game time** | The game keeps running while the editor is open, open it somewhere safe |
+| **Menus** | Opening a menu or closing the First Aid panel closes the editor and keeps the changes |
 
 ### Wind Tracker Options
 
@@ -90,6 +119,7 @@ Each HUD category has its own **Customize ... HUD** toggle. Enabling one reveals
 | **Wind Tracker** | Displayed as its own HUD block, with the direction arrow above the wind speed text when both are enabled |
 | **Held Item Condition** | Displayed near the equipped item popup |
 | **Thin Ice Timer** | Displayed below the vanilla thin ice warning widget |
+| **Vitamin C** | Displayed in the First Aid panel, next to the calorie widget |
 
 ## Installation
 
