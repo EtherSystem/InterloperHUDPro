@@ -3,7 +3,7 @@ using InterloperHudPro;
 using UnityEngine.SceneManagement;
 using static InterloperHudPro.ModSettings;
 
-[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.4.3", "EtherSystem", null)]
+[assembly: MelonInfo(typeof(InterloperHudProMain), "InterloperHudPro", "1.5.0", "EtherSystem", null)]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace InterloperHudPro
@@ -18,6 +18,11 @@ namespace InterloperHudPro
             Settings.OnLoad();
 
             Log("Interloper HUD PRO Starting", false);
+        }
+
+        public override void OnUpdate()
+        {
+            HudEditor.OnUpdate();
         }
 
         internal static void Log(string message, bool onlyWhenDebugEnabled = true)
@@ -824,15 +829,15 @@ namespace InterloperHudPro
         private const int SmallFontSize = 20;
         private static int WeakIceFontSize => Settings.options.ThinIceTimerFontSize;
 
-        private static Vector3 AirTemperaturePosition => new(Settings.options.AirTemperatureX, 0f, 0f);
-        private static Vector3 WindChillPosition => new(Settings.options.WindChillX, 0f, 0f);
-        private static Vector3 FeelsLikePosition => new(Settings.options.FeelsLikeX, 0f, 0f);
+        private static Vector3 AirTemperaturePosition => new(Settings.options.AirTemperatureX, Settings.options.AirTemperatureY, 0f);
+        private static Vector3 WindChillPosition => new(Settings.options.WindChillX, Settings.options.WindChillY, 0f);
+        private static Vector3 FeelsLikePosition => new(Settings.options.FeelsLikeX, Settings.options.FeelsLikeY, 0f);
         private static Vector3 BodyHeatPosition => new(Settings.options.BodyHeatX, Settings.options.BodyHeatY, 0f);
         private static Vector3 WeightPosition => new(Settings.options.WeightX, Settings.options.WeightY, 0f);
-        private static Vector3 DayHudPosition => new(Settings.options.DayHudX, Settings.options.DayHudY, 0f);
-        private static Vector3 TimeHudPosition => new(Settings.options.TimeHudX, Settings.options.TimeHudY, 0f);
-        private static Vector3 SceneHudPosition => new(Settings.options.SceneHudX, Settings.options.SceneHudY, 0f);
-        private static Vector3 WeatherOverhaulStageHudPosition => new(Settings.options.WeatherOverhaulStageX, Settings.options.WeatherOverhaulStageY, 0f);
+        private static Vector3 DayHudPosition => SharedToParentSpace(Settings.options.DayHudX, Settings.options.DayHudY);
+        private static Vector3 TimeHudPosition => SharedToParentSpace(Settings.options.TimeHudX, Settings.options.TimeHudY);
+        private static Vector3 SceneHudPosition => SharedToParentSpace(Settings.options.SceneHudX, Settings.options.SceneHudY);
+        private static Vector3 WeatherOverhaulStageHudPosition => SharedToParentSpace(Settings.options.WeatherOverhaulStageX, Settings.options.WeatherOverhaulStageY);
 
         private static readonly Color DefaultTextColor = new(0.9f, 0.95f, 1f, 1f);
         private static readonly Color WarningTextColor = new(0.95f, 0.55f, 0.15f, 1f);
@@ -855,6 +860,226 @@ namespace InterloperHudPro
         private static UILabel? _weakIceTimerLabel;
 
         private static int _mainLineHeight = 42;
+
+        // ---------------------------------------------------------------------
+        //                    LAYOUT EDITOR ACCESS / PREVIEW
+        // ---------------------------------------------------------------------
+        internal static bool HasMainRoot => _mainRoot != null;
+        internal static Transform? MainRootParent => _mainRoot != null ? _mainRoot.transform.parent : null;
+        internal static Transform? WindRootTransform => _windRoot != null ? _windRoot.transform : null;
+        internal static Color NormalTextColor => DefaultTextColor;
+
+        internal static UILabel? AirTemperatureLabel => _airTemperatureLabel;
+        internal static UILabel? WindChillLabel => _windChillLabel;
+        internal static UILabel? FeelsLikeLabel => _feelsLikeLabel;
+        internal static UILabel? BodyHeatLabel => _bodyHeatLabel;
+        internal static UILabel? WeightLabel => _weightLabel;
+        internal static UILabel? MovementSpeedLabel => _movementSpeedLabel;
+        internal static UILabel? PlayerCoordinatesLabel => _playerCoordinatesLabel;
+        internal static UILabel? WindArrowLabel => _windArrowLabel;
+        internal static UILabel? WindSpeedLabel => _windSpeedLabel;
+        internal static UILabel? DayLabel => _dayLabel;
+        internal static UILabel? TimeLabel => _timeLabel;
+        internal static UILabel? SceneLabel => _sceneLabel;
+        internal static UILabel? WeatherOverhaulStageLabel => _weatherOverhaulStageLabel;
+        internal static UILabel? ActiveItemLabel => _activeItemLabel;
+        internal static UILabel? WeakIceTimerLabel => _weakIceTimerLabel;
+
+        internal static void RenderEditorPreview(Panel_HUD hud)
+        {
+            if (_mainRoot == null)
+                return;
+
+            _mainRoot.SetActive(true);
+            RefreshMainLabelPositions();
+
+            TemperatureHudData temperature = HudLogic.TryGetTemperatureHudData(out TemperatureHudData realTemperature)
+                ? realTemperature
+                : new TemperatureHudData(-10f, -5f, -15f, false);
+            BodyHeatHudData bodyHeat = HudLogic.TryGetBodyHeatHudData(out BodyHeatHudData realBodyHeat)
+                ? realBodyHeat
+                : new BodyHeatHudData(37f);
+            WeightHudData weight = HudLogic.TryGetWeightHudData(out WeightHudData realWeight)
+                ? realWeight
+                : new WeightHudData(12.5f, false);
+            MovementSpeedHudData movementSpeed = HudLogic.TryGetMovementSpeedHudData(out MovementSpeedHudData realSpeed)
+                ? realSpeed
+                : new MovementSpeedHudData(0f);
+            PlayerCoordinatesHudData coordinates = HudLogic.TryGetPlayerCoordinatesHudData(out PlayerCoordinatesHudData realCoordinates)
+                ? realCoordinates
+                : new PlayerCoordinatesHudData(Vector3.zero);
+
+            ApplyFontSize(_bodyHeatLabel, Settings.options.BodyHeatFontSize);
+            ApplyFontSize(_movementSpeedLabel, Settings.options.MovementSpeedFontSize);
+            ApplyFontSize(_playerCoordinatesLabel, Settings.options.PlayerCoordinatesFontSize);
+
+            ShowPreviewLabel(_airTemperatureLabel, HudLogic.FormatAirTemperatureText(temperature));
+            ShowPreviewLabel(_windChillLabel, HudLogic.FormatWindChillText(temperature));
+            ShowPreviewLabel(_feelsLikeLabel, HudLogic.FormatFeelsLikeText(temperature));
+            ShowPreviewLabel(_bodyHeatLabel, HudLogic.FormatBodyHeatHudText(bodyHeat));
+            ShowPreviewLabel(_weightLabel, HudLogic.FormatWeightHudText(weight));
+            ShowPreviewLabel(_movementSpeedLabel, HudLogic.FormatMovementSpeedHudText(movementSpeed));
+            ShowPreviewLabel(_playerCoordinatesLabel, HudLogic.FormatPlayerCoordinatesHudText(coordinates));
+
+            if (_windRoot != null && _windArrowLabel != null && _windSpeedLabel != null)
+            {
+                WindDirectionHudData wind = HudLogic.TryGetWindDirectionHudData(out WindDirectionHudData realWind)
+                    ? realWind
+                    : new WindDirectionHudData(0f, true, 10f, WindHudSeverity.Safe);
+
+                _windRoot.SetActive(true);
+                _windRoot.transform.localPosition = WindRootPosition;
+                _windArrowLabel.transform.localPosition = WindArrowLocalPosition;
+                _windSpeedLabel.transform.localPosition = WindSpeedLocalPosition;
+                _windArrowLabel.fontSize = Settings.options.WindArrowFontSize;
+                _windSpeedLabel.fontSize = Settings.options.WindSpeedFontSize;
+
+                _windArrowLabel.transform.localRotation = Quaternion.identity;
+                _windSpeedLabel.transform.localRotation = Quaternion.identity;
+
+                ShowPreviewLabel(_windArrowLabel, WindDirectionGlyph);
+                ShowPreviewLabel(_windSpeedLabel, HudLogic.FormatWindSpeedText(wind));
+            }
+
+            DayNightHudData dayNight = HudLogic.TryGetDayNightHudData(out DayNightHudData realDayNight)
+                ? realDayNight
+                : new DayNightHudData(1, 12, 0);
+
+            RenderDayBlock(HudLogic.FormatDayHudText(dayNight));
+            RenderTimeBlock(HudLogic.FormatTimeHudText(dayNight));
+            RenderSceneBlock(HudLogic.TryGetSceneHudText(out string sceneText) ? sceneText : "Scene name");
+            RenderWeatherOverhaulStageBlock(
+                WeatherOverhaulIntegration.TryGetCurrentStageDisplayName(out string stageText) ? stageText : "Weather stage");
+
+            if (hud != null && hud.m_EquipItemPopup != null && hud.m_EquipItemPopup.gameObject.activeInHierarchy)
+            {
+                string itemText = HudLogic.TryGetActiveItemHudData(out ActiveItemHudData item)
+                    ? HudLogic.FormatActiveItemHudText(item)
+                    : "100%";
+                RenderActiveItemBlock(hud, itemText);
+            }
+            else
+            {
+                HideActiveItemBlock();
+            }
+
+            if (hud != null)
+                RenderWeakIceTimerBlock(hud, HudLogic.FormatWeakIceTimeText(new WeakIceHudData(5f)));
+        }
+
+        internal static void EndEditorPreview()
+        {
+            UILabel?[] labels =
+            {
+                _airTemperatureLabel, _windChillLabel, _feelsLikeLabel, _bodyHeatLabel, _weightLabel,
+                _movementSpeedLabel, _playerCoordinatesLabel, _windArrowLabel, _windSpeedLabel,
+                _dayLabel, _timeLabel, _sceneLabel, _weatherOverhaulStageLabel, _activeItemLabel, _weakIceTimerLabel
+            };
+
+            foreach (UILabel? label in labels)
+            {
+                if (label != null)
+                    label.color = DefaultTextColor;
+            }
+
+            if (_windArrowLabel != null)
+                _windArrowLabel.transform.localRotation = Quaternion.identity;
+        }
+
+        internal static bool TryGetThinIceTimerBaseY(Panel_HUD hud, out float baseY)
+        {
+            baseY = 0f;
+            if (hud == null || hud.m_ThinIceWidget == null)
+                return false;
+
+            UIWidget widget = hud.m_ThinIceWidget;
+            baseY = widget.transform.localPosition.y - (widget.height * 0.5f);
+            return true;
+        }
+
+        internal static Vector3 SharedToParentSpace(float x, float y)
+        {
+            if (_mainRoot == null)
+                return new Vector3(x, y, 0f);
+
+            Transform root = _mainRoot.transform;
+            Vector3 scale = root.localScale;
+            Vector3 origin = root.localPosition;
+            return new Vector3(origin.x + x * scale.x, origin.y + y * scale.y, 0f);
+        }
+
+        internal static Vector2 ParentToSharedSpace(Vector2 parentLocal)
+        {
+            if (_mainRoot == null)
+                return parentLocal;
+
+            Transform root = _mainRoot.transform;
+            Vector3 scale = root.localScale;
+            Vector3 origin = root.localPosition;
+            return new Vector2(
+                (parentLocal.x - origin.x) / SafeScale(scale.x),
+                (parentLocal.y - origin.y) / SafeScale(scale.y));
+        }
+
+        internal static int LegacyParentXToShared(int x)
+        {
+            return Mathf.RoundToInt(ParentToSharedSpace(new Vector2(x, 0f)).x);
+        }
+
+        internal static int LegacyParentYToShared(int y)
+        {
+            return Mathf.RoundToInt(ParentToSharedSpace(new Vector2(0f, y)).y);
+        }
+
+        private static float SafeScale(float value)
+        {
+            return Mathf.Abs(value) < 0.0001f ? 1f : value;
+        }
+
+        private static void MigrateToSharedPositionSpace()
+        {
+            ModSettings options = Settings.options;
+            if (options.UsesSharedPositionSpace || _mainRoot == null)
+                return;
+
+            options.DayHudX = Settings.ClampSharedX(LegacyParentXToShared(options.DayHudX));
+            options.DayHudY = Settings.ClampSharedY(LegacyParentYToShared(options.DayHudY));
+            options.TimeHudX = Settings.ClampSharedX(LegacyParentXToShared(options.TimeHudX));
+            options.TimeHudY = Settings.ClampSharedY(LegacyParentYToShared(options.TimeHudY));
+            options.SceneHudX = Settings.ClampSharedX(LegacyParentXToShared(options.SceneHudX));
+            options.SceneHudY = Settings.ClampSharedY(LegacyParentYToShared(options.SceneHudY));
+            options.WeatherOverhaulStageX = Settings.ClampSharedX(LegacyParentXToShared(options.WeatherOverhaulStageX));
+            options.WeatherOverhaulStageY = Settings.ClampSharedY(LegacyParentYToShared(options.WeatherOverhaulStageY));
+            options.UsesSharedPositionSpace = true;
+            options.SaveFromEditor();
+
+            InterloperHudProMain.Log("Day, time, scene and weather stage positions converted to the shared position space.", false);
+        }
+
+        internal static void ConfigureEditorOverlayLabel(UILabel label, int fontSize)
+        {
+            ConfigureCenteredLabel(label, fontSize);
+        }
+
+        private static void ShowPreviewLabel(UILabel? label, string text)
+        {
+            if (label == null)
+                return;
+
+            label.text = text;
+            label.gameObject.SetActive(true);
+        }
+
+        private static void ApplyFontSize(UILabel? label, int fontSize)
+        {
+            if (label == null)
+                return;
+
+            label.fontSize = fontSize;
+            label.effectDistance = fontSize >= MainFontSize
+                ? new Vector2(1.7f, 1.7f)
+                : new Vector2(1.5f, 1.5f);
+        }
 
         internal static void Reset()
         {
@@ -997,6 +1222,8 @@ namespace InterloperHudPro
             _mainRoot.transform.localPosition = new Vector3(xOffset, yOffset, 0f);
 
             UnityEngine.Object.Destroy(anchorLabel);
+
+            MigrateToSharedPositionSpace();
 
             _airTemperatureLabel = CreateMainChildLabel(AirTemperatureLabelName, AirTemperaturePosition);
             _windChillLabel = CreateMainChildLabel(WindChillLabelName, WindChillPosition);
@@ -1584,21 +1811,103 @@ namespace InterloperHudPro
         private static Vector3 WidgetOffset => new(Settings.options.FirstAidVitaminCX * 0.01f, Settings.options.FirstAidVitaminCY * 0.01f, 0f);
         private static float _nextRefreshTime;
 
-        private static void Refresh(Panel_FirstAid panel)
+        internal static Transform? EditorWidget { get; private set; }
+        internal static Transform? EditorCalories { get; private set; }
+        internal static UILabel? EditorNameLabel => GetChildLabel(EditorWidget, 1);
+        internal static UILabel? EditorValueLabel => GetChildLabel(EditorWidget, 2);
+
+        private static UILabel? GetChildLabel(Transform? parent, int index)
         {
+            if (parent == null || parent.childCount <= index)
+                return null;
+
+            return parent.GetChild(index).GetComponent<UILabel>();
+        }
+
+        private static bool TryGetCalories(Panel_FirstAid panel, out Transform statusBars, out Transform calories)
+        {
+            statusBars = null!;
+            calories = null!;
+
             if (panel == null || panel.gameObject == null)
-                return;
+                return false;
 
             Transform panelRoot = panel.transform;
             if (panelRoot.childCount <= 2)
-                return;
+                return false;
 
-            Transform statusBars = panelRoot.GetChild(2);
+            statusBars = panelRoot.GetChild(2);
             if (statusBars.childCount <= 12)
+                return false;
+
+            calories = statusBars.GetChild(12);
+            return calories.childCount > 3;
+        }
+
+        private static bool TryGetVitaminC(out float amount, out float maximum)
+        {
+            amount = 0f;
+            maximum = 0f;
+
+            var scurvy = GameManager.GetScurvyComponent();
+            var nutrition = Il2CppTLD.Player.Nutrition.Instance;
+
+            if (scurvy == null || nutrition == null || !nutrition.IsInitialized)
+                return false;
+
+            if (!scurvy.TryGetVitaminCDefinition(out Il2CppTLD.Gameplay.NutrientDefinition nutrient) || nutrient == null)
+                return false;
+
+            amount = nutrition.GetValue(nutrient);
+            maximum = nutrition.GetMaxValue(nutrient);
+
+            return !float.IsNaN(amount) && !float.IsInfinity(amount)
+                && !float.IsNaN(maximum) && !float.IsInfinity(maximum) && maximum > 0f;
+        }
+
+        private static GameObject CreateWidget(Transform statusBars, Transform calories)
+        {
+            GameObject widget = UnityEngine.Object.Instantiate(calories.gameObject, calories.parent);
+            widget.name = WidgetName;
+            widget.transform.GetChild(0).gameObject.SetActive(false);
+
+            UILabel label = widget.transform.GetChild(1).GetComponent<UILabel>();
+            UILocalize? localize = label.GetComponent<UILocalize>();
+            if (localize != null)
+                localize.enabled = false;
+
+            label.text = "VITAMIN C";
+
+            if (statusBars.Find("Blood Drug Level") == null)
+            {
+                Transform background = widget.transform.GetChild(3);
+                Vector3 scale = background.localScale;
+                scale.x -= 0.2f;
+                background.localScale = scale;
+            }
+
+            return widget;
+        }
+
+        private static void ApplyValue(GameObject widget, float amount, float maximum)
+        {
+            UILabel value = widget.transform.GetChild(2).GetComponent<UILabel>();
+            value.text = amount.ToString("0.#");
+
+            float normalized = Mathf.Clamp01(amount / maximum);
+            value.color = normalized < 0.2f
+                ? new Color(0.8f, 0.2f, 0.23f, 1f)
+                : normalized < 0.4f
+                    ? new Color(0.95f, 0.55f, 0.15f, 1f)
+                    : Color.white;
+        }
+
+        private static void Refresh(Panel_FirstAid panel)
+        {
+            if (HudEditor.IsEditingFirstAid)
                 return;
 
-            Transform calories = statusBars.GetChild(12);
-            if (calories.childCount <= 3)
+            if (!TryGetCalories(panel, out Transform statusBars, out Transform calories))
                 return;
 
             GameObject? widget = calories.parent.Find(WidgetName)?.gameObject;
@@ -1610,57 +1919,53 @@ namespace InterloperHudPro
                 return;
             }
 
-            var scurvy = GameManager.GetScurvyComponent();
-            var nutrition = Il2CppTLD.Player.Nutrition.Instance;
-
-            if (scurvy == null || nutrition == null || !nutrition.IsInitialized)
-                return;
-
-            if (!scurvy.TryGetVitaminCDefinition(out Il2CppTLD.Gameplay.NutrientDefinition nutrient) || nutrient == null)
-                return;
-
-            float amount = nutrition.GetValue(nutrient);
-            float maximum = nutrition.GetMaxValue(nutrient);
-
-            if (float.IsNaN(amount) || float.IsInfinity(amount) ||
-                float.IsNaN(maximum) || float.IsInfinity(maximum) || maximum <= 0f)
+            if (!TryGetVitaminC(out float amount, out float maximum))
                 return;
 
             if (widget == null)
-            {
-                widget = UnityEngine.Object.Instantiate(calories.gameObject, calories.parent);
-                widget.name = WidgetName;
-                widget.transform.GetChild(0).gameObject.SetActive(false);
+                widget = CreateWidget(statusBars, calories);
 
-                UILabel label = widget.transform.GetChild(1).GetComponent<UILabel>();
-                UILocalize? localize = label.GetComponent<UILocalize>();
-                if (localize != null)
-                    localize.enabled = false;
+            widget.transform.position = calories.position + WidgetOffset;
+            ApplyValue(widget, amount, maximum);
+            widget.SetActive(true);
+        }
 
-                label.text = "VITAMIN C";
+        internal static void RenderEditorPreview(Panel_FirstAid panel)
+        {
+            EditorWidget = null;
+            EditorCalories = null;
 
-                if (statusBars.Find("Blood Drug Level") == null)
-                {
-                    Transform background = widget.transform.GetChild(3);
-                    Vector3 scale = background.localScale;
-                    scale.x -= 0.2f;
-                    background.localScale = scale;
-                }
-            }
+            if (!TryGetCalories(panel, out Transform statusBars, out Transform calories))
+                return;
+
+            GameObject? widget = calories.parent.Find(WidgetName)?.gameObject;
+            if (widget == null)
+                widget = CreateWidget(statusBars, calories);
 
             widget.transform.position = calories.position + WidgetOffset;
 
-            UILabel value = widget.transform.GetChild(2).GetComponent<UILabel>();
-            value.text = amount.ToString("0.#");
-
-            float normalized = Mathf.Clamp01(amount / maximum);
-            value.color = normalized < 0.2f
-                ? new Color(0.8f, 0.2f, 0.23f, 1f)
-                : normalized < 0.4f
-                    ? new Color(0.95f, 0.55f, 0.15f, 1f)
-                    : Color.white;
+            if (TryGetVitaminC(out float amount, out float maximum))
+                ApplyValue(widget, amount, maximum);
 
             widget.SetActive(true);
+
+            EditorWidget = widget.transform;
+            EditorCalories = calories;
+        }
+
+        internal static void EndEditorPreview(Panel_FirstAid? panel)
+        {
+            UILabel? nameLabel = EditorNameLabel;
+            UILabel? caloriesNameLabel = GetChildLabel(EditorCalories, 1);
+
+            if (nameLabel != null)
+                nameLabel.color = caloriesNameLabel != null ? caloriesNameLabel.color : Color.white;
+
+            EditorWidget = null;
+            EditorCalories = null;
+
+            if (panel != null)
+                Refresh(panel);
         }
 
         [HarmonyPatch(typeof(Panel_FirstAid), nameof(Panel_FirstAid.Initialize))]
@@ -1683,12 +1988,17 @@ namespace InterloperHudPro
             }
         }
 
-        [HarmonyPatch(typeof(Panel_FirstAid), "Update")]
+        [HarmonyPatch(typeof(Panel_FirstAid), nameof(Panel_FirstAid.Update))]
         private static class UpdatePatch
         {
             private static void Postfix(Panel_FirstAid __instance)
             {
-                if (!__instance.IsEnabled() || Time.unscaledTime < _nextRefreshTime)
+                if (!__instance.IsEnabled())
+                    return;
+
+                HudEditor.OnFirstAidUpdate(__instance);
+
+                if (HudEditor.IsEditingFirstAid || Time.unscaledTime < _nextRefreshTime)
                     return;
 
                 _nextRefreshTime = Time.unscaledTime + 0.5f;
@@ -1708,11 +2018,20 @@ namespace InterloperHudPro
             return timer != null ? timer.GetElapsedMinutes() : 0d;
         }
 
+        internal static void ForceRefresh()
+        {
+            MainHudPatch.LastUpdateMinutes = 0d;
+            DayTimeHudPatch.LastUpdateMinutes = 0d;
+            ActiveItemHudPatch.LastUpdateMinutes = 0d;
+            WeakIceHudPatch.LastUpdateMinutes = 0d;
+        }
+
         [HarmonyPatch(typeof(GameManager), nameof(GameManager.Start))]
         private static class ResetHudRefsOnGameStart
         {
             private static void Postfix()
             {
+                HudEditor.Close(save: true);
                 HudRenderer.Reset();
                 HudLogic.ResetWeakIceTracking();
                 MajorMiseriesIntegration.Reset();
@@ -1731,19 +2050,23 @@ namespace InterloperHudPro
 
             private static void Postfix(StatusBar __instance)
             {
+                bool isHudColdBar = __instance.m_IsOnHUD
+                    && __instance.m_StatusBarType == StatusBar.StatusBarType.Cold;
+
+                if (isHudColdBar)
+                    HudRenderer.EnsureMainAnchor(__instance);
+
+                if (HudEditor.IsEditingHud)
+                    return;
+
                 if (!HudLogic.HasMainHudContent())
                 {
                     HudRenderer.HideMainBlock();
                     return;
                 }
 
-                if (!__instance.m_IsOnHUD)
+                if (!isHudColdBar)
                     return;
-
-                if (__instance.m_StatusBarType != StatusBar.StatusBarType.Cold)
-                    return;
-
-                HudRenderer.EnsureMainAnchor(__instance);
 
                 if (HudLogic.HasWindHudContent())
                 {
@@ -1802,6 +2125,9 @@ namespace InterloperHudPro
 
             private static void Postfix()
             {
+                if (HudEditor.IsEditingHud)
+                    return;
+
                 if (!Settings.options.ShowDay && !Settings.options.ShowTime && !Settings.options.ShowSceneName && !Settings.options.ShowWeatherOverhaulStage)
                 {
                     HudRenderer.HideDayBlock();
@@ -1854,6 +2180,9 @@ namespace InterloperHudPro
 
             private static void Postfix(Panel_HUD __instance)
             {
+                if (HudEditor.IsEditingHud)
+                    return;
+
                 if (!Settings.options.ShowActiveItemCondition)
                 {
                     HudRenderer.HideActiveItemBlock();
@@ -1885,6 +2214,9 @@ namespace InterloperHudPro
 
             private static void Postfix(Panel_HUD __instance)
             {
+                if (HudEditor.IsEditingHud)
+                    return;
+
                 if (!Settings.options.ShowThinIceTime)
                 {
                     HudRenderer.HideWeakIceTimerBlock();

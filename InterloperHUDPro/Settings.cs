@@ -86,24 +86,43 @@
 
         [Section("HUD Customization")]
 
+        [Name("Visual layout editor key")]
+        [Description("Key that opens the visual layout editor in game to move the displays with the mouse. Open it while the First Aid panel is open to move the Vitamin C widget. Default: F8.")]
+        public UnityEngine.KeyCode HudEditorKey = UnityEngine.KeyCode.F8;
+
         [Name("Customize temperature HUD")]
         [Description("Show customization settings for the temperature HUD elements.")]
         public bool ShowTemperatureCustomization = false;
 
-        [Name("Air temperature position")]
+        [Name("Air temperature X position")]
         [Description("Moves the air temperature display left or right. Default: 0.")]
-        [Slider(0, 250, 250)]
+        [Slider(-50, 2000, 2050)]
         public int AirTemperatureX = 0;
 
-        [Name("Wind chill position")]
+        [Name("Air temperature Y position")]
+        [Description("Moves the air temperature display up or down. Default: 0.")]
+        [Slider(-150, 1005, 1155)]
+        public int AirTemperatureY = 0;
+
+        [Name("Wind chill X position")]
         [Description("Moves the wind chill display left or right. Default: 60.")]
-        [Slider(0, 250, 250)]
+        [Slider(-50, 2000, 2050)]
         public int WindChillX = 60;
 
-        [Name("Feels like temperature position")]
+        [Name("Wind chill Y position")]
+        [Description("Moves the wind chill display up or down. Default: 0.")]
+        [Slider(-150, 1005, 1155)]
+        public int WindChillY = 0;
+
+        [Name("Feels like temperature X position")]
         [Description("Moves the feels like temperature display left or right. Default: 120.")]
-        [Slider(0, 250, 250)]
+        [Slider(-50, 2000, 2050)]
         public int FeelsLikeX = 120;
+
+        [Name("Feels like temperature Y position")]
+        [Description("Moves the feels like temperature display up or down. Default: 0.")]
+        [Slider(-150, 1005, 1155)]
+        public int FeelsLikeY = 0;
 
         [Name("Customize player coordinates HUD")]
         [Description("Show customization settings for the player coordinates display.")]
@@ -116,7 +135,7 @@
 
         [Name("Player coordinates HUD Y position")]
         [Description("Moves the player coordinates display up or down. Default: -97.")]
-        [Slider(-200, 1005, 1205)]
+        [Slider(-150, 1005, 1155)]
         public int PlayerCoordinatesY = -97;
 
         [Name("Player coordinates HUD size")]
@@ -129,23 +148,23 @@
         public bool ShowDayTimeCustomization = false;
 
         [Name("Day HUD X position")]
-        [Description("Moves the day display anchor left or right. Default: -20.")]
+        [Description("Moves the day display anchor left or right.")]
         [Slider(-50, 2000, 2050)]
         public int DayHudX = -20;
 
         [Name("Day HUD Y position")]
-        [Description("Moves the day display anchor up or down. Default: 95.")]
-        [Slider(-100, 1005, 1105)]
+        [Description("Moves the day display anchor up or down.")]
+        [Slider(-150, 1005, 1155)]
         public int DayHudY = 95;
 
         [Name("Time HUD X position")]
-        [Description("Moves the time display anchor left or right. Default: 100.")]
-        [Slider(-10, 2000, 2010)]
+        [Description("Moves the time display anchor left or right.")]
+        [Slider(-50, 2000, 2050)]
         public int TimeHudX = 100;
 
         [Name("Time HUD Y position")]
-        [Description("Moves the time display anchor up or down. Default: 95.")]
-        [Slider(-100, 1005, 1105)]
+        [Description("Moves the time display anchor up or down.")]
+        [Slider(-150, 1005, 1155)]
         public int TimeHudY = 95;
 
         [Name("Customize scene HUD")]
@@ -153,13 +172,13 @@
         public bool ShowSceneCustomization = false;
 
         [Name("Scene HUD X position")]
-        [Description("Moves the scene name display left or right. Default: -20.")]
+        [Description("Moves the scene name display left or right.")]
         [Slider(-50, 2000, 2050)]
         public int SceneHudX = 30;
 
         [Name("Scene HUD Y position")]
-        [Description("Moves the scene name display up or down. Default: 125.")]
-        [Slider(-100, 1005, 1105)]
+        [Description("Moves the scene name display up or down.")]
+        [Slider(-150, 1005, 1155)]
         public int SceneHudY = -95;
 
         [Name("Scene HUD size")]
@@ -183,12 +202,12 @@
 
         [Name("Wind HUD X position")]
         [Description("Moves the wind display anchor left or right. Default: 355.")]
-        [Slider(-10, 2000, 2010)]
+        [Slider(-50, 2000, 2050)]
         public int WindDirectionX = 355;
 
         [Name("Wind HUD Y position")]
         [Description("Moves the wind display anchor up or down. Default: -45.")]
-        [Slider(-100, 1005, 1105)]
+        [Slider(-150, 1005, 1155)]
         public int WindDirectionY = -45;
 
         [Name("Wind arrow size")]
@@ -217,7 +236,7 @@
 
         [Name("Carried weight Y position")]
         [Description("Moves the carried weight display up or down. Default: 0.")]
-        [Slider(-100, 1005, 1105)]
+        [Slider(-150, 1005, 1155)]
         public int WeightY = 0;
 
         [Name("Customize movement speed HUD")]
@@ -226,7 +245,7 @@
 
         [Name("Movement speed X position")]
         [Description("Moves the movement speed display left or right. Default: 50.")]
-        [Slider(-10, 2000, 2010)]
+        [Slider(-50, 2000, 2050)]
         public int MovementSpeedX = 50;
 
         [Name("Movement speed Y position")]
@@ -302,19 +321,23 @@
         public bool ShowWeatherOverhaulStageCustomization = false;
 
         [Name("WeatherOverhaul stage HUD X position")]
-        [Description("Moves the WeatherOverhaul weather stage display left or right. Default: 10.")]
+        [Description("Moves the WeatherOverhaul weather stage display left or right.")]
         [Slider(-50, 2000, 2050)]
         public int WeatherOverhaulStageX = 10;
 
         [Name("WeatherOverhaul stage HUD Y position")]
-        [Description("Moves the WeatherOverhaul weather stage display up or down. Default: -92.")]
-        [Slider(-200, 1005, 1205)]
+        [Description("Moves the WeatherOverhaul weather stage display up or down.")]
+        [Slider(-150, 1005, 1155)]
         public int WeatherOverhaulStageY = -92;
 
         [Name("WeatherOverhaul stage HUD size")]
         [Description("Controls the size of the WeatherOverhaul weather stage text. Default: 25.")]
         [Slider(14, 48, 34)]
         public int WeatherOverhaulStageFontSize = 25;
+
+        [Name("Shared position space")]
+        [Description("Internal flag: day, time, scene and weather stage positions use the same reference as the other displays.")]
+        public bool UsesSharedPositionSpace = false;
 
         [Section("Advanced")]
 
@@ -352,12 +375,53 @@
             base.OnConfirm();
         }
 
+        internal void ClampPositionsToSliderRanges()
+        {
+            AirTemperatureX = Settings.ClampSharedX(AirTemperatureX);
+            AirTemperatureY = Settings.ClampSharedY(AirTemperatureY);
+            WindChillX = Settings.ClampSharedX(WindChillX);
+            WindChillY = Settings.ClampSharedY(WindChillY);
+            FeelsLikeX = Settings.ClampSharedX(FeelsLikeX);
+            FeelsLikeY = Settings.ClampSharedY(FeelsLikeY);
+            PlayerCoordinatesX = Settings.ClampSharedX(PlayerCoordinatesX);
+            PlayerCoordinatesY = Settings.ClampSharedY(PlayerCoordinatesY);
+            WindDirectionX = Settings.ClampSharedX(WindDirectionX);
+            WindDirectionY = Settings.ClampSharedY(WindDirectionY);
+            WeightX = Settings.ClampSharedX(WeightX);
+            WeightY = Settings.ClampSharedY(WeightY);
+            MovementSpeedX = Settings.ClampSharedX(MovementSpeedX);
+            MovementSpeedY = Settings.ClampSharedY(MovementSpeedY);
+            BodyHeatX = Settings.ClampSharedX(BodyHeatX);
+            BodyHeatY = Settings.ClampSharedY(BodyHeatY);
+
+            if (!UsesSharedPositionSpace)
+                return;
+
+            DayHudX = Settings.ClampSharedX(DayHudX);
+            DayHudY = Settings.ClampSharedY(DayHudY);
+            TimeHudX = Settings.ClampSharedX(TimeHudX);
+            TimeHudY = Settings.ClampSharedY(TimeHudY);
+            SceneHudX = Settings.ClampSharedX(SceneHudX);
+            SceneHudY = Settings.ClampSharedY(SceneHudY);
+            WeatherOverhaulStageX = Settings.ClampSharedX(WeatherOverhaulStageX);
+            WeatherOverhaulStageY = Settings.ClampSharedY(WeatherOverhaulStageY);
+        }
+
+        internal void SaveFromEditor()
+        {
+            RefreshVisibility();
+            Save();
+        }
+
         internal void RefreshVisibility()
         {
             bool showTemperatureCustomization = ShowTemperatureCustomization;
             SetFieldVisible(nameof(AirTemperatureX), showTemperatureCustomization && ShowAirTemperature);
+            SetFieldVisible(nameof(AirTemperatureY), showTemperatureCustomization && ShowAirTemperature);
             SetFieldVisible(nameof(WindChillX), showTemperatureCustomization && ShowWindChill);
+            SetFieldVisible(nameof(WindChillY), showTemperatureCustomization && ShowWindChill);
             SetFieldVisible(nameof(FeelsLikeX), showTemperatureCustomization && ShowFeelsLikeTemperature);
+            SetFieldVisible(nameof(FeelsLikeY), showTemperatureCustomization && ShowFeelsLikeTemperature);
 
             SetFieldVisible(nameof(BodyHeatX), ShowBodyHeatCustomization && ShowBodyHeat);
             SetFieldVisible(nameof(BodyHeatY), ShowBodyHeatCustomization && ShowBodyHeat);
@@ -405,6 +469,7 @@
             SetFieldVisible(nameof(FirstAidVitaminCY), ShowFirstAidVitaminCCustomization && ShowVitaminCFirstAid);
 
             SetFieldVisible(nameof(IsLogging), ShowAdvanced);
+            SetFieldVisible(nameof(UsesSharedPositionSpace), false);
 
             if (!ShowAdvanced)
                 IsLogging = false;
@@ -413,11 +478,21 @@
 
     internal static class Settings
     {
+        internal const int SharedMinX = -50;
+        internal const int SharedMaxX = 2000;
+        internal const int SharedMinY = -150;
+        internal const int SharedMaxY = 1005;
+
         public static ModSettings options;
+
+        internal static int ClampSharedX(int value) => Mathf.Clamp(value, SharedMinX, SharedMaxX);
+
+        internal static int ClampSharedY(int value) => Mathf.Clamp(value, SharedMinY, SharedMaxY);
 
         public static void OnLoad()
         {
             options = new ModSettings();
+            options.ClampPositionsToSliderRanges();
             options.AddToModSettings("Interloper HUD PRO");
             options.RefreshVisibility();
 
